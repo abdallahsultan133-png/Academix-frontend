@@ -78,7 +78,7 @@ function App() {
                   warnWhenUnsavedChanges: true,
                   projectId: "9sZQll-ZrhvSP-k4lkA8",
                   title: {
-                      text: "Academix",
+                      text: "ClassroomMS",
                       icon: <School />,
                   },
               }}
