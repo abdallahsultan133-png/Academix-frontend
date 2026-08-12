@@ -26,9 +26,9 @@ import { UserRole, type User } from "@/types";
 
 type DashboardStats = {
     students: number;
-    teachers: number;
+    teachers?: number;
     classes: number;
-    subjects: number;
+    subjects?: number;
     attendanceRate: number | null;
     pendingGrading: number;
 };
@@ -44,24 +44,34 @@ const QUICK_ACTIONS = [
 const Dashboard = () => {
     const { data: identity } = useGetIdentity<User>();
     const isAdminLike = identity?.role === UserRole.ADMIN || identity?.role === UserRole.SUPER_ADMIN;
-    const isStaffLike = isAdminLike || identity?.role === UserRole.TEACHER;
+    const isTeacher = identity?.role === UserRole.TEACHER;
+    const isStaffLike = isAdminLike || isTeacher;
 
     const { data: stats, isLoading } = useApiQuery<DashboardStats>("/dashboard/stats");
 
-    const statCards = [
-        { title: "Students", value: stats?.students ?? 0, icon: Users, color: "blue" as const, description: "Total enrolled" },
-        { title: "Teachers", value: stats?.teachers ?? 0, icon: UserRoundCheck, color: "green" as const, description: "Active staff" },
-        { title: "Classes", value: stats?.classes ?? 0, icon: Building2, color: "purple" as const, description: "Running classes" },
-        {
-            title: "Attendance (30d)",
-            value: stats?.attendanceRate !== null && stats?.attendanceRate !== undefined
-                ? `${stats.attendanceRate}%`
-                : "—",
-            icon: ClipboardCheck,
-            color: (stats?.attendanceRate !== null && (stats?.attendanceRate ?? 0) >= 75 ? "green" : "amber") as "green" | "amber",
-            description: "Average across all classes",
-        },
-    ];
+    const attendanceCard = {
+        title: "Attendance (30d)",
+        value: stats?.attendanceRate !== null && stats?.attendanceRate !== undefined
+            ? `${stats.attendanceRate}%`
+            : "—",
+        icon: ClipboardCheck,
+        color: (stats?.attendanceRate !== null && (stats?.attendanceRate ?? 0) >= 75 ? "green" : "amber") as "green" | "amber",
+        description: isTeacher ? "Average across your classes" : "Average across all classes",
+    };
+
+    const statCards = isTeacher
+        ? [
+            { title: "Students", value: stats?.students ?? 0, icon: Users, color: "blue" as const, description: "Enrolled in your classes" },
+            { title: "Classes", value: stats?.classes ?? 0, icon: Building2, color: "purple" as const, description: "You teach" },
+            { title: "Subjects", value: stats?.subjects ?? 0, icon: BookOpen, color: "green" as const, description: "Across your classes" },
+            attendanceCard,
+        ]
+        : [
+            { title: "Students", value: stats?.students ?? 0, icon: Users, color: "blue" as const, description: "Total enrolled" },
+            { title: "Teachers", value: stats?.teachers ?? 0, icon: UserRoundCheck, color: "green" as const, description: "Active staff" },
+            { title: "Classes", value: stats?.classes ?? 0, icon: Building2, color: "purple" as const, description: "Running classes" },
+            attendanceCard,
+        ];
 
     return (
         <div className="space-y-6">
