@@ -1,7 +1,7 @@
 import {CreateView} from "@/components/refine-ui/views/create-view.tsx";
 import {Breadcrumb} from "@/components/layout/breadcrumb.tsx";
 import {Button} from "@/components/ui/button.tsx";
-import {useBack, useList} from "@refinedev/core";
+import {useBack, useGetIdentity, useList} from "@refinedev/core";
 import {Separator} from "@/components/ui/separator.tsx";
 import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card.tsx"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -9,6 +9,7 @@ import { useForm } from "@refinedev/react-hook-form"
 import type { ControllerRenderProps } from "react-hook-form";
 import {classSchema} from "@/lib/schema.ts";
 import * as z from "zod";
+import { useEffect } from "react";
 
 type ClassFormValues = z.infer<typeof classSchema>;
 type UploadedFile = { url: string; publicId: string } | null;
@@ -26,10 +27,12 @@ import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/c
 import {Textarea} from "@/components/ui/textarea.tsx";
 import {Loader2} from "lucide-react";
 import UploadWidget from "@/components/upload-widget.tsx";
-import {Subject, User} from "@/types";
+import {Subject, User, UserRole} from "@/types";
 
 const Create = () => {
     const back = useBack();
+    const { data: identity } = useGetIdentity<User>();
+    const isTeacher = identity?.role === UserRole.TEACHER;
 
     const form = useForm({
         resolver: zodResolver(classSchema),
@@ -44,7 +47,18 @@ const Create = () => {
         handleSubmit,
         formState: { isSubmitting, errors },
         control,
+        setValue,
     } = form;
+
+    // A teacher can only create classes taught by themselves — the backend
+    // forces teacherId to the caller for that role, so the picker is
+    // pointless (and would silently be overridden). Set it automatically
+    // instead of showing a dropdown of every teacher in the school.
+    useEffect(() => {
+        if (isTeacher && identity?.id) {
+            setValue("teacherId", identity.id, { shouldValidate: true });
+        }
+    }, [isTeacher, identity?.id, setValue]);
 
     const onSubmit = async (values: z.infer<typeof classSchema>) => {
         try {
@@ -68,7 +82,10 @@ const Create = () => {
         ],
         pagination: {
             pageSize: 100
-        }
+        },
+        queryOptions: {
+            enabled: !isTeacher,
+        },
     })
 
     const subjects = subjectsQuery?.data?.data || [];
@@ -206,28 +223,34 @@ const Create = () => {
                                                 <FormLabel>
                                                     Teacher <span className="text-orange-600">*</span>
                                                 </FormLabel>
-                                                <Select
-                                                    onValueChange={field.onChange}
-                                                    value={field.value}
-                                                    disabled={teachersLoading}
-
-                                                >
+                                                {isTeacher ? (
                                                     <FormControl>
-                                                        <SelectTrigger className="w-full">
-                                                            <SelectValue placeholder="Select a teacher" />
-                                                        </SelectTrigger>
+                                                        <Input value={identity?.name ?? "You"} disabled readOnly />
                                                     </FormControl>
-                                                    <SelectContent>
-                                                        {teachers.map((teacher) => (
-                                                            <SelectItem
-                                                                key={teacher.id}
-                                                                value={teacher.id.toString()}
-                                                            >
-                                                                {teacher.name}
-                                                            </SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
+                                                ) : (
+                                                    <Select
+                                                        onValueChange={field.onChange}
+                                                        value={field.value}
+                                                        disabled={teachersLoading}
+
+                                                    >
+                                                        <FormControl>
+                                                            <SelectTrigger className="w-full">
+                                                                <SelectValue placeholder="Select a teacher" />
+                                                            </SelectTrigger>
+                                                        </FormControl>
+                                                        <SelectContent>
+                                                            {teachers.map((teacher) => (
+                                                                <SelectItem
+                                                                    key={teacher.id}
+                                                                    value={teacher.id.toString()}
+                                                                >
+                                                                    {teacher.name}
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                )}
                                                 <FormMessage />
                                             </FormItem>
                                         )}

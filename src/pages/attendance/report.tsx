@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useList } from "@refinedev/core";
+import { useGetIdentity, useList } from "@refinedev/core";
 import { toast } from "sonner";
 import { Download, Loader2, Printer } from "lucide-react";
 import { PDFDownloadLink } from "@react-pdf/renderer";
@@ -13,7 +13,8 @@ import { Progress } from "@/components/ui/progress.tsx";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table.tsx";
 import { AttendanceReportDocument } from "@/components/pdf/attendance-report-document.tsx";
 import { BACKEND_BASE_URL } from "@/constants";
-import type { ClassDetails } from "@/types";
+import { useApiQuery } from "@/hooks/use-api-query.ts";
+import { UserRole, type ClassDetails, type User } from "@/types";
 
 type ReportRow = {
   studentId: string;
@@ -35,6 +36,9 @@ const rateColor = (rate: number | null) => {
 };
 
 const AttendanceReport = () => {
+  const { data: identity } = useGetIdentity<User>();
+  const isStudent = identity?.role === UserRole.STUDENT;
+
   const [classId, setClassId] = useState<string>("");
   const [rows, setRows] = useState<ReportRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -43,7 +47,13 @@ const AttendanceReport = () => {
     resource: "classes",
     pagination: { pageSize: 100 },
   });
-  const classes = classesQuery?.data?.data ?? [];
+  const allClasses = classesQuery?.data?.data ?? [];
+
+  // A student can only view their own attendance, and only for a class
+  // they're actually enrolled in — so the picker only offers those.
+  const { data: enrolledIdsData } = useApiQuery<{ data: number[] }>(isStudent ? "/classes/enrolled-ids" : null);
+  const enrolledIds = enrolledIdsData?.data ?? [];
+  const classes = isStudent ? allClasses.filter((c) => enrolledIds.includes(c.id)) : allClasses;
 
   useEffect(() => {
     if (!classId && classes.length > 0) setClassId(String(classes[0].id));
@@ -81,7 +91,9 @@ const AttendanceReport = () => {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Attendance Report</h1>
-          <p className="text-sm text-muted-foreground print:hidden">Per-student attendance rate for the selected class.</p>
+          <p className="text-sm text-muted-foreground print:hidden">
+            {isStudent ? "Your attendance rate for the selected class." : "Per-student attendance rate for the selected class."}
+          </p>
           <p className="hidden text-sm text-muted-foreground print:block">
             {selectedClassName} · Generated {new Date().toLocaleDateString()}
           </p>
@@ -124,7 +136,11 @@ const AttendanceReport = () => {
           </div>
         ) : rows.length === 0 ? (
           <div className="p-10 text-center text-sm text-muted-foreground">
-            No enrolled students to report on yet.
+            {isStudent
+              ? classes.length === 0
+                ? "You're not enrolled in any classes yet."
+                : "No attendance recorded for you in this class yet."
+              : "No enrolled students to report on yet."}
           </div>
         ) : (
           <Table>

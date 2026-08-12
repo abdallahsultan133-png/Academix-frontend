@@ -43,6 +43,7 @@ const gradeColor = (grade: number | null) => {
 const Gradebook = () => {
   const { data: identity } = useGetIdentity<User>();
   const isTeacherOrAdmin = identity?.role === UserRole.TEACHER || identity?.role === UserRole.ADMIN || identity?.role === UserRole.SUPER_ADMIN;
+  const isStudent = identity?.role === UserRole.STUDENT;
 
   const queryClient = useQueryClient();
   const [classId, setClassId] = useState("");
@@ -50,7 +51,14 @@ const Gradebook = () => {
   const [saving, setSaving] = useState(false);
 
   const { query: classesQuery } = useList<ClassDetails>({ resource: "classes", pagination: { pageSize: 100 } });
-  const classes = classesQuery?.data?.data ?? [];
+  const allClasses = classesQuery?.data?.data ?? [];
+
+  // A student can only ever view their own gradebook row, and only for a
+  // class they're actually enrolled in — so the picker only offers those,
+  // not the school's full class catalog.
+  const { data: enrolledIdsData } = useApiQuery<{ data: number[] }>(isStudent ? "/classes/enrolled-ids" : null);
+  const enrolledIds = enrolledIdsData?.data ?? [];
+  const classes = isStudent ? allClasses.filter((c) => enrolledIds.includes(c.id)) : allClasses;
 
   useEffect(() => {
     if (!classId && classes.length > 0) setClassId(String(classes[0].id));
@@ -145,7 +153,13 @@ const Gradebook = () => {
         {loading ? (
           <div className="space-y-3 p-4">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
         ) : rows.length === 0 ? (
-          <div className="p-10 text-center text-sm text-muted-foreground">No students enrolled in this class yet.</div>
+          <div className="p-10 text-center text-sm text-muted-foreground">
+            {isStudent
+              ? classes.length === 0
+                ? "You're not enrolled in any classes yet."
+                : "No grades recorded for you in this class yet."
+              : "No students enrolled in this class yet."}
+          </div>
         ) : (
           <Table>
             <TableHeader>

@@ -1,7 +1,7 @@
 import {EditView} from "@/components/refine-ui/views/edit-view.tsx";
 import {Breadcrumb} from "@/components/layout/breadcrumb.tsx";
 import {Button} from "@/components/ui/button.tsx";
-import {useBack, useList} from "@refinedev/core";
+import {useBack, useGetIdentity, useList} from "@refinedev/core";
 import {useParams} from "react-router";
 import {useEffect} from "react";
 import {Separator} from "@/components/ui/separator.tsx";
@@ -28,11 +28,13 @@ import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/c
 import {Textarea} from "@/components/ui/textarea.tsx";
 import {Loader2} from "lucide-react";
 import UploadWidget from "@/components/upload-widget.tsx";
-import {Subject, User} from "@/types";
+import {Subject, User, UserRole} from "@/types";
 
 const Edit = () => {
     const back = useBack();
     const { id } = useParams<{ id: string }>();
+    const { data: identity } = useGetIdentity<User>();
+    const isTeacher = identity?.role === UserRole.TEACHER;
 
     const form = useForm({
         resolver: zodResolver(classSchema),
@@ -84,7 +86,10 @@ const Edit = () => {
         filters: [
             { field: 'role', operator: 'eq', value: 'teacher' },
         ],
-        pagination: { pageSize: 100 }
+        pagination: { pageSize: 100 },
+        queryOptions: {
+            enabled: !isTeacher,
+        },
     })
 
     const subjects = subjectsQuery?.data?.data || [];
@@ -225,29 +230,35 @@ const Edit = () => {
                                                 <FormLabel>
                                                     Teacher <span className="text-orange-600">*</span>
                                                 </FormLabel>
-                                                <Select
-                                                    key={`${field.value ?? "unset"}-${teachersLoading}`}
-                                                    onValueChange={field.onChange}
-                                                    value={field.value}
-                                                    disabled={teachersLoading}
-
-                                                >
+                                                {isTeacher ? (
                                                     <FormControl>
-                                                        <SelectTrigger className="w-full">
-                                                            <SelectValue placeholder="Select a teacher" />
-                                                        </SelectTrigger>
+                                                        <Input value={identity?.name ?? "You"} disabled readOnly />
                                                     </FormControl>
-                                                    <SelectContent>
-                                                        {teachers.map((teacher) => (
-                                                            <SelectItem
-                                                                key={teacher.id}
-                                                                value={teacher.id.toString()}
-                                                            >
-                                                                {teacher.name}
-                                                            </SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
+                                                ) : (
+                                                    <Select
+                                                        key={`${field.value ?? "unset"}-${teachersLoading}`}
+                                                        onValueChange={field.onChange}
+                                                        value={field.value}
+                                                        disabled={teachersLoading}
+
+                                                    >
+                                                        <FormControl>
+                                                            <SelectTrigger className="w-full">
+                                                                <SelectValue placeholder="Select a teacher" />
+                                                            </SelectTrigger>
+                                                        </FormControl>
+                                                        <SelectContent>
+                                                            {teachers.map((teacher) => (
+                                                                <SelectItem
+                                                                    key={teacher.id}
+                                                                    value={teacher.id.toString()}
+                                                                >
+                                                                    {teacher.name}
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                )}
                                                 <FormMessage />
                                             </FormItem>
                                         )}

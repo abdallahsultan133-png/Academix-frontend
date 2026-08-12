@@ -45,6 +45,7 @@ const Dashboard = () => {
     const { data: identity } = useGetIdentity<User>();
     const isAdminLike = identity?.role === UserRole.ADMIN || identity?.role === UserRole.SUPER_ADMIN;
     const isTeacher = identity?.role === UserRole.TEACHER;
+    const isStudent = identity?.role === UserRole.STUDENT;
     const isStaffLike = isAdminLike || isTeacher;
 
     const { data: stats, isLoading } = useApiQuery<DashboardStats>("/dashboard/stats");
@@ -56,7 +57,7 @@ const Dashboard = () => {
             : "—",
         icon: ClipboardCheck,
         color: (stats?.attendanceRate !== null && (stats?.attendanceRate ?? 0) >= 75 ? "green" : "amber") as "green" | "amber",
-        description: isTeacher ? "Average across your classes" : "Average across all classes",
+        description: isTeacher ? "Average across your classes" : isStudent ? "Your attendance" : "Average across all classes",
     };
 
     const statCards = isTeacher

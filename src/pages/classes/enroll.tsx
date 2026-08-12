@@ -1,11 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, Link } from "react-router";
 import { toast } from "sonner";
-import { UserMinus, UserPlus, ArrowLeft, Upload, Loader2 } from "lucide-react";
+import { UserMinus, UserPlus, ArrowLeft, Upload, Loader2, Search } from "lucide-react";
 import { Breadcrumb } from "@/components/layout/breadcrumb.tsx";
 import { Card } from "@/components/ui/card.tsx";
 import { Input } from "@/components/ui/input.tsx";
 import { Button } from "@/components/ui/button.tsx";
+import { Checkbox } from "@/components/ui/checkbox.tsx";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar.tsx";
 import { Skeleton } from "@/components/ui/skeleton.tsx";
 import {
@@ -23,11 +24,18 @@ const EnrollStudents = () => {
     const { id: classId } = useParams();
     const [students, setStudents] = useState<Student[]>([]);
     const [loading, setLoading] = useState(true);
-    const [enrollEmail, setEnrollEmail] = useState("");
-    const [enrolling, setEnrolling] = useState(false);
     const [bulkImporting, setBulkImporting] = useState(false);
     const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number } | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Full student directory picker — browse/search everyone by name or
+    // email and multi-select who to enroll, instead of only being able to
+    // add one exact email at a time.
+    const [allStudents, setAllStudents] = useState<Student[]>([]);
+    const [directoryLoading, setDirectoryLoading] = useState(true);
+    const [search, setSearch] = useState("");
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const [enrollingSelected, setEnrollingSelected] = useState(false);
 
     const load = () => {
         setLoading(true);
@@ -38,23 +46,65 @@ const EnrollStudents = () => {
             .finally(() => setLoading(false));
     };
 
-    useEffect(() => { load(); }, [classId]);
+    const loadDirectory = () => {
+        setDirectoryLoading(true);
+        fetch(`${BACKEND_BASE_URL}/users/students`, { credentials: "include" })
+            .then(async (r) => r.ok ? r.json() : { data: [] })
+            .then((j) => setAllStudents(j.data ?? []))
+            .catch(() => toast.error("Failed to load student directory"))
+            .finally(() => setDirectoryLoading(false));
+    };
 
-    const handleEnroll = async () => {
-        if (!enrollEmail.trim()) return toast.error("Enter an email address.");
-        setEnrolling(true);
-        try {
-            const res = await fetch(`${BACKEND_BASE_URL}/classes/${classId}/enroll`, {
-                method: "POST", credentials: "include",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email: enrollEmail.trim() }),
-            });
-            if (!res.ok) throw new Error((await res.json())?.error ?? "Failed");
-            toast.success("Student enrolled.");
-            setEnrollEmail("");
-            load();
-        } catch (e) { toast.error(e instanceof Error ? e.message : "Failed to enroll"); }
-        finally { setEnrolling(false); }
+    useEffect(() => { load(); loadDirectory(); }, [classId]);
+
+    const enrolledIds = useMemo(() => new Set(students.map((s) => s.id)), [students]);
+
+    const availableStudents = useMemo(() => {
+        const q = search.trim().toLowerCase();
+        return allStudents
+            .filter((s) => !enrolledIds.has(s.id))
+            .filter((s) => !q || s.name.toLowerCase().includes(q) || s.email.toLowerCase().includes(q));
+    }, [allStudents, enrolledIds, search]);
+
+    const toggleSelected = (studentId: string) => {
+        setSelectedIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(studentId)) next.delete(studentId);
+            else next.add(studentId);
+            return next;
+        });
+    };
+
+    const handleEnrollSelected = async () => {
+        if (selectedIds.size === 0) return;
+        setEnrollingSelected(true);
+
+        let succeeded = 0;
+        const failed: string[] = [];
+
+        for (const studentId of selectedIds) {
+            try {
+                const res = await fetch(`${BACKEND_BASE_URL}/classes/${classId}/enroll`, {
+                    method: "POST", credentials: "include",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ studentId }),
+                });
+                if (res.ok) succeeded++;
+                else failed.push(studentId);
+            } catch {
+                failed.push(studentId);
+            }
+        }
+
+        setEnrollingSelected(false);
+        setSelectedIds(new Set());
+        load();
+
+        if (failed.length === 0) {
+            toast.success(`Enrolled ${succeeded} student${succeeded === 1 ? "" : "s"}.`);
+        } else {
+            toast.warning(`Enrolled ${succeeded} of ${selectedIds.size}. ${failed.length} failed.`);
+        }
     };
 
     const handleBulkImport = async (file: File) => {
@@ -123,16 +173,61 @@ const EnrollStudents = () => {
             </div>
 
             <Card className="p-4">
-                <p className="text-sm font-medium mb-3">Enroll a student</p>
-                <div className="flex gap-2">
+                <p className="text-sm font-medium mb-1">Enroll students</p>
+                <p className="text-xs text-muted-foreground mb-3">
+                    Browse or search the student directory by name or email, then select everyone who should be enrolled.
+                </p>
+
+                <div className="relative mb-3">
+                    <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
-                        placeholder="Student's email address"
-                        value={enrollEmail}
-                        onChange={(e) => setEnrollEmail(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleEnroll(); } }}
+                        placeholder="Search by name or email…"
+                        className="pl-8"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
                     />
-                    <Button onClick={handleEnroll} disabled={enrolling}>
-                        <UserPlus className="mr-1.5 h-4 w-4" />{enrolling ? "Enrolling..." : "Enroll"}
+                </div>
+
+                <div className="max-h-72 overflow-y-auto rounded-md border divide-y">
+                    {directoryLoading ? (
+                        Array.from({ length: 4 }).map((_, i) => (
+                            <div key={i} className="flex items-center gap-3 p-3">
+                                <Skeleton className="h-8 w-8 rounded-full" />
+                                <div className="flex-1 space-y-1.5"><Skeleton className="h-3.5 w-36" /><Skeleton className="h-3 w-24" /></div>
+                            </div>
+                        ))
+                    ) : availableStudents.length === 0 ? (
+                        <p className="p-6 text-center text-sm text-muted-foreground">
+                            {search ? "No matching students found." : "Every student is already enrolled in this class."}
+                        </p>
+                    ) : (
+                        availableStudents.map((s) => (
+                            <label key={s.id} htmlFor={`student-${s.id}`} className="flex cursor-pointer items-center gap-3 p-3 hover:bg-muted/50">
+                                <Checkbox
+                                    id={`student-${s.id}`}
+                                    checked={selectedIds.has(s.id)}
+                                    onCheckedChange={() => toggleSelected(s.id)}
+                                />
+                                <Avatar className="h-8 w-8">
+                                    {s.image && <AvatarImage src={s.image} />}
+                                    <AvatarFallback>{getInitials(s.name)}</AvatarFallback>
+                                </Avatar>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium truncate">{s.name}</p>
+                                    <p className="text-xs text-muted-foreground truncate">{s.email}</p>
+                                </div>
+                            </label>
+                        ))
+                    )}
+                </div>
+
+                <div className="mt-3 flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">
+                        {selectedIds.size} student{selectedIds.size === 1 ? "" : "s"} selected
+                    </span>
+                    <Button onClick={handleEnrollSelected} disabled={enrollingSelected || selectedIds.size === 0}>
+                        <UserPlus className="mr-1.5 h-4 w-4" />
+                        {enrollingSelected ? "Enrolling..." : `Enroll Selected${selectedIds.size > 0 ? ` (${selectedIds.size})` : ""}`}
                     </Button>
                 </div>
 
