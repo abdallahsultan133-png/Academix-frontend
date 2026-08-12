@@ -1,0 +1,138 @@
+import { useState } from "react";
+import { useNavigate } from "react-router";
+import { useList } from "@refinedev/core";
+import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
+
+import { Breadcrumb } from "@/components/layout/breadcrumb.tsx";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card.tsx";
+import { Button } from "@/components/ui/button.tsx";
+import { Input } from "@/components/ui/input.tsx";
+import { Label } from "@/components/ui/label.tsx";
+import { Textarea } from "@/components/ui/textarea.tsx";
+import { Separator } from "@/components/ui/separator.tsx";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select.tsx";
+import FileUploadWidget, { type FileUploadValue } from "@/components/file-upload-widget.tsx";
+import { BACKEND_BASE_URL } from "@/constants";
+import type { ClassDetails } from "@/types";
+
+const AssignmentsCreate = () => {
+  const navigate = useNavigate();
+
+  const { query: classesQuery } = useList<ClassDetails>({ resource: "classes", pagination: { pageSize: 100 } });
+  const classes = classesQuery?.data?.data ?? [];
+
+  const [classId, setClassId] = useState("");
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [dueAt, setDueAt] = useState("");
+  const [maxScore, setMaxScore] = useState("100");
+  const [attachment, setAttachment] = useState<FileUploadValue | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!classId) return toast.error("Select a class.");
+    if (!title.trim()) return toast.error("Title is required.");
+
+    setSubmitting(true);
+    try {
+      const res = await fetch(`${BACKEND_BASE_URL}/assignments`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          classId: Number(classId),
+          title: title.trim(),
+          description: description.trim() || undefined,
+          dueAt: dueAt || undefined,
+          maxScore: Number(maxScore) || 100,
+          attachmentUrl: attachment?.url,
+          attachmentCldPubId: attachment?.publicId,
+          attachmentName: attachment?.fileName,
+        }),
+      });
+
+      if (!res.ok) throw new Error((await res.json())?.message ?? "Failed to create assignment");
+      const { data } = await res.json();
+
+      toast.success("Assignment created.");
+      navigate(`/assignments/${data.id}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to create assignment");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="assignments-create space-y-6">
+      <Breadcrumb />
+
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">New Assignment</h1>
+        <p className="text-sm text-muted-foreground">Give it a title, a due date, and optionally attach a file.</p>
+      </div>
+
+      <Card className="max-w-2xl">
+        <CardHeader>
+          <CardTitle>Assignment details</CardTitle>
+        </CardHeader>
+        <Separator />
+        <CardContent className="mt-6">
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div className="space-y-2">
+              <Label>Class <span className="text-orange-600">*</span></Label>
+              <Select value={classId} onValueChange={setClassId}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select a class" />
+                </SelectTrigger>
+                <SelectContent>
+                  {classes.map((c) => (
+                    <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Title <span className="text-orange-600">*</span></Label>
+              <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Essay: The Causes of WWI" />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Description</Label>
+              <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Instructions for students..." rows={5} />
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Due date</Label>
+                <Input type="datetime-local" value={dueAt} onChange={(e) => setDueAt(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Max score</Label>
+                <Input type="number" min={1} value={maxScore} onChange={(e) => setMaxScore(e.target.value)} />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Attachment</Label>
+              <FileUploadWidget value={attachment} onChange={setAttachment} />
+            </div>
+
+            <Separator />
+
+            <Button type="submit" size="lg" className="w-full" disabled={submitting}>
+              {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {submitting ? "Creating..." : "Create Assignment"}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+export default AssignmentsCreate;
