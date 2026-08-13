@@ -50,14 +50,15 @@ const Dashboard = () => {
 
     const { data: stats, isLoading } = useApiQuery<DashboardStats>("/dashboard/stats");
 
+    const hasAttendanceRate = stats?.attendanceRate !== null && stats?.attendanceRate !== undefined;
+
     const attendanceCard = {
         title: "Attendance (30d)",
-        value: stats?.attendanceRate !== null && stats?.attendanceRate !== undefined
-            ? `${stats.attendanceRate}%`
-            : "—",
+        value: hasAttendanceRate ? `${stats!.attendanceRate}%` : "—",
         icon: ClipboardCheck,
-        color: (stats?.attendanceRate !== null && (stats?.attendanceRate ?? 0) >= 75 ? "green" : "amber") as "green" | "amber",
+        color: (hasAttendanceRate && (stats?.attendanceRate ?? 0) >= 75 ? "green" : "amber") as "green" | "amber",
         description: isTeacher ? "Average across your classes" : isStudent ? "Your attendance" : "Average across all classes",
+        percent: hasAttendanceRate ? stats!.attendanceRate! : undefined,
     };
 
     const statCards = isTeacher
@@ -102,6 +103,7 @@ const Dashboard = () => {
                             color={item.color}
                             description={item.description}
                             index={index}
+                            percent={"percent" in item ? item.percent : undefined}
                         />
                     ))
                 )}

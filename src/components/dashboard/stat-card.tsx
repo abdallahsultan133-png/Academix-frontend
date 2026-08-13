@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import type { LucideIcon } from "lucide-react";
 
@@ -11,6 +12,8 @@ interface StatCardProps {
     trend?: "up" | "down" | "neutral";
     color?: "blue" | "green" | "amber" | "red" | "purple";
     index?: number;
+    /** When set (0-100), renders a progress bar under the value — for percentage-based stats. */
+    percent?: number;
 }
 
 const COLOR_MAP = {
@@ -21,7 +24,7 @@ const COLOR_MAP = {
     purple: { bg: "bg-purple-50 dark:bg-purple-950/30", icon: "text-purple-600 dark:text-purple-400", ring: "bg-purple-100 dark:bg-purple-900/50" },
 };
 
-export function StatCard({ title, value, icon: Icon, description, color = "blue", index = 0 }: StatCardProps) {
+export function StatCard({ title, value, icon: Icon, description, color = "blue", index = 0, percent }: StatCardProps) {
     const colors = COLOR_MAP[color];
 
     return (
@@ -45,6 +48,9 @@ export function StatCard({ title, value, icon: Icon, description, color = "blue"
                             {value}
                         </motion.h2>
                         {description && <p className="text-xs text-muted-foreground">{description}</p>}
+                        {percent !== undefined && (
+                            <Progress value={percent} className="mt-2 h-1.5 w-32 min-w-0" />
+                        )}
                     </div>
                     <div className={cn("flex h-12 w-12 items-center justify-center rounded-full", colors.ring)}>
                         <Icon className={cn("h-6 w-6", colors.icon)} />
