@@ -13,6 +13,13 @@ import { Input } from "@/components/ui/input.tsx";
 import { Separator } from "@/components/ui/separator.tsx";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar.tsx";
 import { Skeleton } from "@/components/ui/skeleton.tsx";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog.tsx";
 import FileUploadWidget, { type FileUploadValue } from "@/components/file-upload-widget.tsx";
 import { BACKEND_BASE_URL } from "@/constants";
 import type { User } from "@/types";
@@ -333,7 +340,22 @@ const AssignmentShow = () => {
                         <FileIcon className="h-3 w-3" /> {s.fileName ?? "Attachment"}
                       </a>
                     )}
-                    {s.content && <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{s.content}</p>}
+                    {s.content && (
+                      <Dialog>
+                        <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{s.content}</p>
+                        <DialogTrigger asChild>
+                          <button type="button" className="mt-0.5 text-xs font-medium text-primary hover:underline">
+                            Read full submission
+                          </button>
+                        </DialogTrigger>
+                        <DialogContent className="max-h-[80vh] max-w-2xl overflow-y-auto">
+                          <DialogHeader>
+                            <DialogTitle>{s.student?.name}'s submission</DialogTitle>
+                          </DialogHeader>
+                          <p className="whitespace-pre-wrap text-sm">{s.content}</p>
+                        </DialogContent>
+                      </Dialog>
+                    )}
                     {s.aiScore !== null && <div className="mt-1.5">{aiScoreBadge(s.aiScore, s.aiSummary)}</div>}
                   </div>
 
