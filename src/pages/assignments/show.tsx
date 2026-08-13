@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams } from "react-router";
 import { useGetIdentity } from "@refinedev/core";
 import { toast } from "sonner";
-import { CalendarClock, CheckCircle2, File as FileIcon, Loader2 } from "lucide-react";
+import { CalendarClock, CheckCircle2, File as FileIcon, Loader2, Sparkles } from "lucide-react";
 
 import { Breadcrumb } from "@/components/layout/breadcrumb.tsx";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card.tsx";
@@ -28,7 +28,22 @@ type Submission = {
   score: number | null;
   feedback: string | null;
   submittedAt: string;
+  aiScore: number | null;
+  aiSummary: string | null;
   student?: { id: string; name: string; email: string; image: string | null };
+};
+
+const aiScoreBadge = (score: number, summary: string | null) => {
+  const tone = score >= 70
+    ? "bg-red-100 text-red-700"
+    : score >= 30
+      ? "bg-amber-100 text-amber-700"
+      : "bg-emerald-100 text-emerald-700";
+  return (
+    <span title={summary ?? undefined} className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${tone}`}>
+      <Sparkles className="h-3 w-3" /> {score}% likely AI-written
+    </span>
+  );
 };
 
 type AssignmentDetail = {
@@ -182,6 +197,8 @@ const AssignmentShow = () => {
     );
   }
 
+  const deadlinePassed = !!assignment.dueAt && new Date() > new Date(assignment.dueAt);
+
   return (
     <div className="assignment-show space-y-6">
       <Breadcrumb />
@@ -241,19 +258,27 @@ const AssignmentShow = () => {
               </div>
             )}
 
-            <Textarea
-              placeholder="Write your answer here..."
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              rows={6}
-            />
+            {deadlinePassed ? (
+              <p className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                The deadline for this assignment has passed. You can no longer submit.
+              </p>
+            ) : (
+              <>
+                <Textarea
+                  placeholder="Write your answer here..."
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                  rows={6}
+                />
 
-            <FileUploadWidget value={file} onChange={setFile} />
+                <FileUploadWidget value={file} onChange={setFile} />
 
-            <Button onClick={handleSubmit} disabled={submitting}>
-              {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {assignment.mySubmission ? "Resubmit" : "Submit"}
-            </Button>
+                <Button onClick={handleSubmit} disabled={submitting}>
+                  {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {assignment.mySubmission ? "Resubmit" : "Submit"}
+                </Button>
+              </>
+            )}
           </CardContent>
         </Card>
       )}
@@ -290,6 +315,7 @@ const AssignmentShow = () => {
                       </a>
                     )}
                     {s.content && <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{s.content}</p>}
+                    {s.aiScore !== null && <div className="mt-1.5">{aiScoreBadge(s.aiScore, s.aiSummary)}</div>}
                   </div>
 
                   {statusBadge(s.status)}
