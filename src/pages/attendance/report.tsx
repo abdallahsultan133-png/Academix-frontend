@@ -167,7 +167,7 @@ const AttendanceReport = () => {
                   <TableCell className="text-center">{row.excusedCount}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      <Progress value={row.attendanceRate ?? 0} className="h-2" />
+                      <Progress value={row.attendanceRate ?? 0} className="h-2 min-w-0 flex-1" />
                       <span className={`w-12 text-right text-xs font-medium ${rateColor(row.attendanceRate)}`}>
                         {row.attendanceRate === null ? "—" : `${row.attendanceRate}%`}
                       </span>
