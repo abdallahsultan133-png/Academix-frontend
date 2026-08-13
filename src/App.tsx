@@ -168,6 +168,7 @@ function App() {
                               <Route index element={<AttendanceIndex />} />
                               <Route path="report" element={<AttendanceReport />} />
                               <Route path="qr" element={<QrAttendancePage />} />
+                              <Route path="qr/scan/:token" element={<QrAttendancePage />} />
                           </Route>
 
                           <Route path="assignments">

@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useParams } from "react-router";
 import { useGetIdentity, useList } from "@refinedev/core";
 import { toast } from "sonner";
-import { QrCode, RefreshCw, CheckCircle2, Clock, Users } from "lucide-react";
+import { QrCode, RefreshCw, CheckCircle2, Clock, Users, XCircle, Loader2 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 
 import { Breadcrumb } from "@/components/layout/breadcrumb.tsx";
@@ -23,6 +24,7 @@ type QrSession = {
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
 const QrAttendancePage = () => {
+    const { token: routeToken } = useParams<{ token?: string }>();
     const { data: identity } = useGetIdentity<User>();
     const isTeacherOrAdmin = identity?.role === UserRole.TEACHER
         || identity?.role === UserRole.ADMIN
@@ -33,7 +35,9 @@ const QrAttendancePage = () => {
     const [generating, setGenerating] = useState(false);
     const [secondsLeft, setSecondsLeft] = useState(0);
     const [scanResult, setScanResult] = useState<string | null>(null);
+    const [scanError, setScanError] = useState<string | null>(null);
     const [scanning, setScanning] = useState(false);
+    const autoScannedRef = useRef(false);
 
     const { query: classesQuery } = useList<ClassDetails>({
         resource: "classes",
@@ -75,9 +79,11 @@ const QrAttendancePage = () => {
         }
     };
 
-    // Student: mark attendance by submitting the token manually
+    // Student: mark attendance by submitting the token (manually, or
+    // automatically when opened via a scanned QR link with a :token param).
     const markViaToken = async (token: string) => {
         setScanning(true);
+        setScanError(null);
         try {
             const res = await fetch(`${BACKEND_BASE_URL}/attendance/qr/${token}`, {
                 method: "POST",
@@ -88,11 +94,23 @@ const QrAttendancePage = () => {
             setScanResult(json.message ?? "Attendance recorded!");
             toast.success(json.message ?? "Attendance recorded!");
         } catch (e) {
-            toast.error(e instanceof Error ? e.message : "Failed to record attendance");
+            const message = e instanceof Error ? e.message : "Failed to record attendance";
+            setScanError(message);
+            toast.error(message);
         } finally {
             setScanning(false);
         }
     };
+
+    // Scanning the QR opens this page with the token in the URL — mark
+    // attendance automatically instead of making the student paste it in.
+    useEffect(() => {
+        if (routeToken && !autoScannedRef.current) {
+            autoScannedRef.current = true;
+            markViaToken(routeToken);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [routeToken]);
 
     const scanUrl = session
         ? `${window.location.origin}/attendance/qr/scan/${session.token}`
@@ -206,7 +224,7 @@ const QrAttendancePage = () => {
                     </Card>
                 </div>
             ) : (
-                /* Student: enter token manually */
+                /* Student: auto-marks via the scanned link's token, or falls back to manual entry */
                 <Card className="max-w-md">
                     <CardHeader>
                         <CardTitle>Mark Your Attendance</CardTitle>
@@ -217,7 +235,18 @@ const QrAttendancePage = () => {
                             <div className="flex flex-col items-center gap-3 py-4 text-center">
                                 <CheckCircle2 className="h-12 w-12 text-emerald-500" />
                                 <p className="font-semibold text-emerald-700">{scanResult}</p>
-                                <Button variant="outline" onClick={() => setScanResult(null)}>Mark another</Button>
+                                <Button variant="outline" onClick={() => { setScanResult(null); setScanError(null); }}>Mark another</Button>
+                            </div>
+                        ) : routeToken && scanning ? (
+                            <div className="flex flex-col items-center gap-3 py-4 text-center">
+                                <Loader2 className="h-10 w-10 animate-spin text-muted-foreground" />
+                                <p className="text-sm text-muted-foreground">Marking your attendance…</p>
+                            </div>
+                        ) : routeToken && scanError ? (
+                            <div className="flex flex-col items-center gap-3 py-4 text-center">
+                                <XCircle className="h-12 w-12 text-red-500" />
+                                <p className="font-semibold text-red-700">{scanError}</p>
+                                <Button variant="outline" onClick={() => markViaToken(routeToken)}>Try again</Button>
                             </div>
                         ) : (
                             <>
