@@ -258,7 +258,26 @@ const AssignmentShow = () => {
               </div>
             )}
 
-            {deadlinePassed ? (
+            {assignment.mySubmission ? (
+              <div className="space-y-2 rounded-md border bg-muted/30 p-3 text-sm">
+                <p className="text-muted-foreground">
+                  Submitted {new Date(assignment.mySubmission.submittedAt).toLocaleString()} — submissions are final and can't be changed.
+                </p>
+                {assignment.mySubmission.content && (
+                  <p className="whitespace-pre-wrap">{assignment.mySubmission.content}</p>
+                )}
+                {assignment.mySubmission.fileUrl && (
+                  <a
+                    href={assignment.mySubmission.fileUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1.5 font-medium text-primary hover:underline"
+                  >
+                    <FileIcon className="h-3.5 w-3.5" /> {assignment.mySubmission.fileName ?? "Attachment"}
+                  </a>
+                )}
+              </div>
+            ) : deadlinePassed ? (
               <p className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
                 The deadline for this assignment has passed. You can no longer submit.
               </p>
@@ -275,7 +294,7 @@ const AssignmentShow = () => {
 
                 <Button onClick={handleSubmit} disabled={submitting}>
                   {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  {assignment.mySubmission ? "Resubmit" : "Submit"}
+                  Submit
                 </Button>
               </>
             )}
