@@ -237,6 +237,14 @@ const CalendarPage = () => {
         .sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime())[0];
     const examOrDeadlineCount = monthEvents.filter((e) => e.type === "exam" || e.type === "deadline").length;
 
+    // fetch() rejects with a TypeError when the request never reached the server
+    // (backend down, wrong VITE_BACKEND_BASE_URL, CORS) — surface that as
+    // something actionable instead of the raw "Failed to fetch".
+    const describeError = (err: unknown, fallback: string) => {
+        if (err instanceof TypeError) return "Couldn't reach the server — is the backend running?";
+        return err instanceof Error ? err.message : fallback;
+    };
+
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!title.trim()) return toast.error("Title is required.");
@@ -252,26 +260,29 @@ const CalendarPage = () => {
                     recurrenceFreq, recurrenceEndAt: recurrenceFreq !== "none" && recurrenceEndAt ? recurrenceEndAt : undefined,
                 }),
             });
-            if (!res.ok) throw new Error((await res.json())?.error ?? "Failed");
+            if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.error ?? "Failed to create event");
             toast.success("Event created.");
             setTitle(""); setDescription(""); setStartAt(""); setEndAt(""); setType("event"); setAllDay(false);
             setRecurrenceFreq("none"); setRecurrenceEndAt("");
             setShowForm(false);
             queryClient.invalidateQueries({ queryKey: [calendarPath] });
         } catch (err) {
-            toast.error(err instanceof Error ? err.message : "Failed to create event");
+            toast.error(describeError(err, "Failed to create event"));
         } finally {
             setCreating(false);
         }
     };
 
     const handleDelete = async (eventId: number) => {
-        const res = await fetch(`${BACKEND_BASE_URL}/calendar/${eventId}`, { method: "DELETE", credentials: "include" });
-        if (res.ok) {
+        try {
+            const res = await fetch(`${BACKEND_BASE_URL}/calendar/${eventId}`, { method: "DELETE", credentials: "include" });
+            if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.error ?? "Failed to delete event");
             queryClient.invalidateQueries({ queryKey: [calendarPath] });
             setSelectedDay(null);
             toast.success("Event deleted.");
-        } else toast.error("Failed to delete event.");
+        } catch (err) {
+            toast.error(describeError(err, "Failed to delete event"));
+        }
     };
 
     const rowStyle = { gridTemplateRows: `repeat(${weeks}, minmax(6.75rem, 1fr))` } as const;
