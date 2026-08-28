@@ -1,23 +1,24 @@
 import { useState } from "react";
 import { useGetIdentity } from "@refinedev/core";
-import { useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { AnimatePresence, motion } from "framer-motion";
 import {
     ChevronLeft, ChevronRight, Plus, X,
     BookOpenCheck, CalendarDays, Flag, Clock, Repeat, Sparkles, CalendarRange,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 import { Breadcrumb } from "@/components/layout/breadcrumb.tsx";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card.tsx";
+import { Card, CardContent } from "@/components/ui/card.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { Input } from "@/components/ui/input.tsx";
 import { Label } from "@/components/ui/label.tsx";
 import { Textarea } from "@/components/ui/textarea.tsx";
-import { Separator } from "@/components/ui/separator.tsx";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select.tsx";
 import { Switch } from "@/components/ui/switch.tsx";
 import { Badge } from "@/components/ui/badge.tsx";
+import { Skeleton } from "@/components/ui/skeleton.tsx";
 import {
     Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog.tsx";
@@ -55,9 +56,13 @@ const RECURRENCE_LABELS: Record<RecurrenceFreq, string> = {
 
 const TYPE_CONFIG: Record<CalendarEventType, {
     label: string;
-    icon: typeof Flag;
+    icon: LucideIcon;
     dot: string;
+    /** Legend / badge pill. */
     chip: string;
+    /** Compact event chip inside a month cell — tinted fill + left accent bar. */
+    cell: string;
+    /** Round icon badge in the agenda panel. */
     iconWrap: string;
 }> = {
     class: {
@@ -65,6 +70,7 @@ const TYPE_CONFIG: Record<CalendarEventType, {
         icon: CalendarDays,
         dot: "bg-blue-500",
         chip: "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-300",
+        cell: "border-l-2 border-blue-500 bg-blue-50/80 text-blue-900 dark:border-blue-400 dark:bg-blue-950/50 dark:text-blue-100",
         iconWrap: "bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400",
     },
     exam: {
@@ -72,6 +78,7 @@ const TYPE_CONFIG: Record<CalendarEventType, {
         icon: BookOpenCheck,
         dot: "bg-red-500",
         chip: "border-red-200 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300",
+        cell: "border-l-2 border-red-500 bg-red-50/80 text-red-900 dark:border-red-400 dark:bg-red-950/50 dark:text-red-100",
         iconWrap: "bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400",
     },
     holiday: {
@@ -79,6 +86,7 @@ const TYPE_CONFIG: Record<CalendarEventType, {
         icon: Flag,
         dot: "bg-emerald-500",
         chip: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300",
+        cell: "border-l-2 border-emerald-500 bg-emerald-50/80 text-emerald-900 dark:border-emerald-400 dark:bg-emerald-950/50 dark:text-emerald-100",
         iconWrap: "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400",
     },
     event: {
@@ -86,6 +94,7 @@ const TYPE_CONFIG: Record<CalendarEventType, {
         icon: Sparkles,
         dot: "bg-violet-500",
         chip: "border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-900 dark:bg-violet-950/40 dark:text-violet-300",
+        cell: "border-l-2 border-violet-500 bg-violet-50/80 text-violet-900 dark:border-violet-400 dark:bg-violet-950/50 dark:text-violet-100",
         iconWrap: "bg-violet-100 text-violet-600 dark:bg-violet-900/40 dark:text-violet-400",
     },
     deadline: {
@@ -93,6 +102,7 @@ const TYPE_CONFIG: Record<CalendarEventType, {
         icon: Clock,
         dot: "bg-amber-500",
         chip: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300",
+        cell: "border-l-2 border-amber-500 bg-amber-50/80 text-amber-900 dark:border-amber-400 dark:bg-amber-950/50 dark:text-amber-100",
         iconWrap: "bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400",
     },
 };
@@ -102,13 +112,42 @@ const EVENT_TYPES: CalendarEventType[] = ["class", "exam", "holiday", "event", "
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 
-const isoDate = (d: Date) => d.toISOString().slice(0, 10);
+const isoDate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+/** "9a", "2:30p" — terse enough to fit an event chip. */
+const compactTime = (iso: string) => {
+    const d = new Date(iso);
+    let h = d.getHours();
+    const m = d.getMinutes();
+    const suffix = h >= 12 ? "p" : "a";
+    h = h % 12 || 12;
+    return m === 0 ? `${h}${suffix}` : `${h}:${String(m).padStart(2, "0")}${suffix}`;
+};
+
+const isAllDayLike = (e: CalendarEvent) => e.allDay || e.type === "holiday";
+
+// All-day items float to the top of a day, then timed items in chronological order.
+const byStart = (a: CalendarEvent, b: CalendarEvent) => {
+    if (isAllDayLike(a) !== isAllDayLike(b)) return isAllDayLike(a) ? -1 : 1;
+    return new Date(a.startAt).getTime() - new Date(b.startAt).getTime();
+};
 
 const gridVariants = {
     enter: (dir: number) => ({ opacity: 0, x: dir === 0 ? 0 : dir * 28 }),
     center: { opacity: 1, x: 0 },
     exit: (dir: number) => ({ opacity: 0, x: dir === 0 ? 0 : -dir * 28 }),
 };
+
+function PanelEmpty({ icon: Icon, text }: { icon: LucideIcon; text: string }) {
+    return (
+        <div className="flex flex-col items-center gap-3 py-14 text-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-muted">
+                <Icon className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <p className="text-sm text-muted-foreground">{text}</p>
+        </div>
+    );
+}
 
 const CalendarPage = () => {
     const { data: identity } = useGetIdentity<User>();
@@ -135,17 +174,24 @@ const CalendarPage = () => {
 
     const year = current.getFullYear();
     const month = current.getMonth();
-    const firstDay = new Date(year, month, 1).getDay();
+    const firstWeekday = new Date(year, month, 1).getDay();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const totalCells = Math.ceil((firstDay + daysInMonth) / 7) * 7;
+    const weeks = Math.ceil((firstWeekday + daysInMonth) / 7);
+    const totalCells = weeks * 7;
 
-    const from = isoDate(new Date(year, month, 1));
-    const to = isoDate(new Date(year, month + 1, 0));
+    // The visible grid spills into the previous/next month — fetch that whole
+    // window so leading/trailing days show their real events too, the way a
+    // desktop calendar does, instead of rendering as dead cells.
+    const gridStart = new Date(year, month, 1 - firstWeekday);
+    const gridEnd = new Date(year, month, 1 - firstWeekday + totalCells - 1);
+    const isCurrentMonth = month === today.getMonth() && year === today.getFullYear();
 
-    const calendarPath = `/calendar?from=${from}&to=${to}`;
-    const { data, isLoading: loading } = useApiQuery<{ data: CalendarEvent[] }>(calendarPath);
+    const calendarPath = `/calendar?from=${isoDate(gridStart)}&to=${isoDate(gridEnd)}`;
+    const { data, isFetching, isLoading } = useApiQuery<{ data: CalendarEvent[] }>(calendarPath, {
+        placeholderData: keepPreviousData,
+    });
     const allEvents = data?.data ?? [];
-    const events = allEvents.filter((e) => visibleTypes.has(e.type));
+    const visibleEvents = allEvents.filter((e) => visibleTypes.has(e.type));
 
     const goToMonth = (offset: number) => {
         setDirection(offset);
@@ -154,6 +200,18 @@ const CalendarPage = () => {
     const goToToday = () => {
         setDirection(0);
         setCurrent(new Date(today.getFullYear(), today.getMonth(), 1));
+    };
+    const openDay = (d: Date) => {
+        if (d.getMonth() !== month || d.getFullYear() !== year) {
+            setDirection(d.getTime() > current.getTime() ? 1 : -1);
+            setCurrent(new Date(d.getFullYear(), d.getMonth(), 1));
+        }
+        setSelectedDay(d);
+    };
+    const openCreateOn = (d: Date) => {
+        setStartAt(`${isoDate(d)}T09:00`);
+        setAllDay(false);
+        setShowForm(true);
     };
 
     const toggleType = (t: CalendarEventType) => {
@@ -164,18 +222,20 @@ const CalendarPage = () => {
         });
     };
 
-    const eventsOnDay = (day: number) => {
-        const d = isoDate(new Date(year, month, day));
-        return events.filter((e) => e.startAt.slice(0, 10) === d);
+    const eventsOn = (d: Date) => {
+        const key = isoDate(d);
+        return visibleEvents.filter((e) => e.startAt.slice(0, 10) === key).sort(byStart);
     };
 
-    const selectedEvents = selectedDay ? eventsOnDay(selectedDay.getDate()) : [];
+    const selectedEvents = selectedDay ? eventsOn(selectedDay) : [];
 
+    const monthKey = `${year}-${String(month + 1).padStart(2, "0")}`;
+    const monthEvents = visibleEvents.filter((e) => e.startAt.slice(0, 7) === monthKey);
     const now = new Date();
-    const nextUp = [...events]
+    const nextUp = [...visibleEvents]
         .filter((e) => new Date(e.startAt).getTime() >= now.getTime())
         .sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime())[0];
-    const examOrDeadlineCount = events.filter((e) => e.type === "exam" || e.type === "deadline").length;
+    const examOrDeadlineCount = monthEvents.filter((e) => e.type === "exam" || e.type === "deadline").length;
 
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -213,6 +273,9 @@ const CalendarPage = () => {
             toast.success("Event deleted.");
         } else toast.error("Failed to delete event.");
     };
+
+    const rowStyle = { gridTemplateRows: `repeat(${weeks}, minmax(6.75rem, 1fr))` } as const;
+    const firstLoad = isLoading && !data;
 
     return (
         <div className="calendar-page space-y-6">
@@ -320,7 +383,7 @@ const CalendarPage = () => {
             <div className="grid gap-4 sm:grid-cols-3">
                 <StatCard
                     title="Events this month"
-                    value={String(events.length)}
+                    value={String(monthEvents.length)}
                     icon={CalendarDays}
                     color="blue"
                     description={`${MONTHS[month]} ${year}`}
@@ -347,8 +410,8 @@ const CalendarPage = () => {
             </div>
 
             {/* Filterable legend */}
-            <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-medium text-muted-foreground">Filter:</span>
+            <div className="flex flex-wrap items-center gap-2 rounded-xl border bg-card/50 px-3 py-2">
+                <span className="text-xs font-medium text-muted-foreground">Show:</span>
                 {EVENT_TYPES.map((t) => {
                     const { label, icon: Icon, chip } = TYPE_CONFIG[t];
                     const active = visibleTypes.has(t);
@@ -373,17 +436,28 @@ const CalendarPage = () => {
 
             <div className="grid gap-6 lg:grid-cols-3">
                 {/* Month grid */}
-                <Card className={cn("overflow-hidden lg:col-span-2 transition-opacity", loading && "opacity-60")}>
+                <Card className="overflow-hidden border-border/70 shadow-sm lg:col-span-2">
                     {/* Navigation */}
-                    <div className="flex items-center justify-between border-b bg-muted/20 px-5 py-3">
-                        <h2 className="font-display text-lg font-semibold">{MONTHS[month]} {year}</h2>
+                    <div className="flex items-center justify-between border-b bg-gradient-to-r from-muted/50 to-transparent px-5 py-3">
+                        <div className="flex items-baseline gap-2">
+                            <h2 className="font-display text-lg font-semibold">{MONTHS[month]}</h2>
+                            <span className="text-sm font-medium text-muted-foreground">{year}</span>
+                            {monthEvents.length > 0 && (
+                                <span className="ml-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                                    {monthEvents.length} event{monthEvents.length === 1 ? "" : "s"}
+                                </span>
+                            )}
+                            {isFetching && !firstLoad && (
+                                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-violet-500" aria-hidden="true" />
+                            )}
+                        </div>
                         <div className="flex items-center gap-1">
                             <Button variant="ghost" size="icon" aria-label="Previous month" onClick={() => goToMonth(-1)}>
                                 <ChevronLeft className="h-4 w-4" />
                             </Button>
-                            <Button variant="outline" size="sm" onClick={goToToday}>
-                                Today
-                            </Button>
+                            {!isCurrentMonth && (
+                                <Button variant="outline" size="sm" onClick={goToToday}>Today</Button>
+                            )}
                             <Button variant="ghost" size="icon" aria-label="Next month" onClick={() => goToMonth(1)}>
                                 <ChevronRight className="h-4 w-4" />
                             </Button>
@@ -392,128 +466,179 @@ const CalendarPage = () => {
 
                     {/* Day headers */}
                     <div className="grid grid-cols-7 border-b bg-muted/30">
-                        {DAYS.map((d, i) => (
-                            <div
-                                key={d}
-                                className={cn(
-                                    "py-2 text-center text-xs font-medium text-muted-foreground",
-                                    (i === 0 || i === 6) && "text-muted-foreground/70",
-                                )}
-                            >
-                                {d}
-                            </div>
-                        ))}
+                        {DAYS.map((d, i) => {
+                            const isTodayCol = isCurrentMonth && today.getDay() === i;
+                            return (
+                                <div
+                                    key={d}
+                                    className={cn(
+                                        "py-2 text-center text-[11px] font-semibold uppercase tracking-wide",
+                                        isTodayCol ? "text-foreground" : "text-muted-foreground",
+                                        (i === 0 || i === 6) && !isTodayCol && "text-muted-foreground/60",
+                                    )}
+                                >
+                                    {d}
+                                </div>
+                            );
+                        })}
                     </div>
 
                     {/* Calendar cells */}
                     <div className="overflow-hidden">
-                        <AnimatePresence mode="wait" custom={direction}>
-                            <motion.div
-                                key={`${year}-${month}`}
-                                custom={direction}
-                                variants={gridVariants}
-                                initial="enter"
-                                animate="center"
-                                exit="exit"
-                                transition={{ duration: 0.22, ease: "easeOut" }}
-                                className="grid grid-cols-7"
-                            >
-                                {Array.from({ length: totalCells }).map((_, i) => {
-                                    const dayNum = i - firstDay + 1;
-                                    const isValid = dayNum >= 1 && dayNum <= daysInMonth;
-                                    const date = isValid ? new Date(year, month, dayNum) : null;
-                                    const isToday = date && isoDate(date) === isoDate(today);
-                                    const isSelected = date && selectedDay && isoDate(date) === isoDate(selectedDay);
-                                    const isWeekend = i % 7 === 0 || i % 7 === 6;
-                                    const dayEvents = isValid ? eventsOnDay(dayNum) : [];
+                        {firstLoad ? (
+                            <div className="grid grid-cols-7" style={rowStyle}>
+                                {Array.from({ length: totalCells }).map((_, i) => (
+                                    <div key={i} className="space-y-1.5 border-b border-r p-1.5 [&:nth-child(7n)]:border-r-0">
+                                        <Skeleton className="h-6 w-6 rounded-full" />
+                                        <Skeleton className="h-3 w-full" />
+                                        {i % 3 === 0 && <Skeleton className="h-3 w-2/3" />}
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <AnimatePresence mode="wait" custom={direction}>
+                                <motion.div
+                                    key={`${year}-${month}`}
+                                    custom={direction}
+                                    variants={gridVariants}
+                                    initial="enter"
+                                    animate="center"
+                                    exit="exit"
+                                    transition={{ duration: 0.22, ease: "easeOut" }}
+                                    className="grid grid-cols-7"
+                                    style={rowStyle}
+                                >
+                                    {Array.from({ length: totalCells }).map((_, i) => {
+                                        const date = new Date(year, month, 1 - firstWeekday + i);
+                                        const inMonth = date.getMonth() === month;
+                                        const isToday = isoDate(date) === isoDate(today);
+                                        const isSelected = !!selectedDay && isoDate(date) === isoDate(selectedDay);
+                                        const isWeekend = i % 7 === 0 || i % 7 === 6;
+                                        const isLastRow = i >= totalCells - 7;
+                                        const dayEvents = eventsOn(date);
+                                        const overflow = dayEvents.length - 3;
 
-                                    return (
-                                        <div
-                                            key={i}
-                                            onClick={() => isValid && date && setSelectedDay(date)}
-                                            className={cn(
-                                                "min-h-[92px] border-b border-r p-1.5 transition-colors last:border-r-0",
-                                                isValid ? "cursor-pointer hover:bg-muted/40" : "bg-muted/10",
-                                                isWeekend && isValid && "bg-muted/[0.15]",
-                                                isSelected && "bg-primary/[0.07] ring-1 ring-inset ring-primary/40",
-                                            )}
-                                        >
-                                            {isValid && (
-                                                <>
-                                                    <div className={cn(
-                                                        "mb-1 flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium transition-colors",
-                                                        isToday && "bg-gradient-to-br from-violet-500 to-indigo-500 text-white shadow-sm",
-                                                        !isToday && isSelected && "text-primary font-semibold",
+                                        return (
+                                            <div
+                                                key={i}
+                                                onClick={() => openDay(date)}
+                                                className={cn(
+                                                    "group relative flex cursor-pointer flex-col gap-1 overflow-hidden border-b border-r p-1.5 transition-colors [&:nth-child(7n)]:border-r-0",
+                                                    isLastRow && "border-b-0",
+                                                    inMonth ? "hover:bg-muted/50" : "bg-muted/[0.35] hover:bg-muted/50",
+                                                    isWeekend && inMonth && "bg-muted/20",
+                                                    isSelected && "bg-primary/[0.06] ring-1 ring-inset ring-primary/30",
+                                                )}
+                                            >
+                                                <div className="flex items-center justify-between">
+                                                    <span className={cn(
+                                                        "flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium tabular-nums transition-colors",
+                                                        isToday && "bg-gradient-to-br from-violet-500 to-indigo-500 font-semibold text-white shadow-sm",
+                                                        !isToday && isSelected && "font-semibold text-primary",
+                                                        !isToday && !isSelected && !inMonth && "text-muted-foreground/50",
                                                     )}>
-                                                        {dayNum}
-                                                    </div>
-                                                    <div className="space-y-0.5">
-                                                        {dayEvents.slice(0, 3).map((ev) => {
-                                                            const { chip } = TYPE_CONFIG[ev.type];
-                                                            return (
-                                                                <div key={ev.id} className={cn("flex items-center gap-1 truncate rounded px-1 py-px text-[10px] font-medium border", chip)}>
-                                                                    <span className="truncate">{ev.title}</span>
-                                                                </div>
-                                                            );
-                                                        })}
-                                                        {dayEvents.length > 3 && (
-                                                            <div className="pl-1 text-[10px] font-medium text-muted-foreground">+{dayEvents.length - 3} more</div>
-                                                        )}
-                                                    </div>
-                                                </>
-                                            )}
-                                        </div>
-                                    );
-                                })}
-                            </motion.div>
-                        </AnimatePresence>
+                                                        {date.getDate()}
+                                                    </span>
+                                                    {isTeacherOrAdmin && inMonth && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => { e.stopPropagation(); openCreateOn(date); }}
+                                                            aria-label={`Add event on ${date.toLocaleDateString()}`}
+                                                            className="pointer-events-none flex h-5 w-5 items-center justify-center rounded-md text-muted-foreground opacity-0 transition hover:bg-muted hover:text-foreground group-hover:pointer-events-auto group-hover:opacity-100"
+                                                        >
+                                                            <Plus className="h-3.5 w-3.5" />
+                                                        </button>
+                                                    )}
+                                                </div>
+
+                                                <div className="flex flex-col gap-0.5">
+                                                    {dayEvents.slice(0, 3).map((ev) => {
+                                                        const cfg = TYPE_CONFIG[ev.type];
+                                                        const timed = !isAllDayLike(ev);
+                                                        return (
+                                                            <div
+                                                                key={`${ev.id}-${ev.startAt}`}
+                                                                title={ev.title}
+                                                                className={cn(
+                                                                    "flex items-center gap-1 overflow-hidden rounded-[5px] py-[3px] pl-1.5 pr-1 text-[10.5px] font-medium leading-tight",
+                                                                    cfg.cell,
+                                                                    !inMonth && "opacity-60",
+                                                                )}
+                                                            >
+                                                                {timed && (
+                                                                    <span className="shrink-0 tabular-nums opacity-70">{compactTime(ev.startAt)}</span>
+                                                                )}
+                                                                <span className="truncate">{ev.title}</span>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                    {overflow > 0 && (
+                                                        <span className="w-fit rounded px-1 text-[10px] font-medium text-muted-foreground">
+                                                            +{overflow} more
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </motion.div>
+                            </AnimatePresence>
+                        )}
                     </div>
                 </Card>
 
-                {/* Day detail panel */}
-                <Card className="lg:sticky lg:top-4 lg:self-start">
-                    <CardHeader className="flex-row items-center justify-between space-y-0">
-                        <CardTitle className="text-base">
-                            {selectedDay
-                                ? selectedDay.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })
-                                : "Select a day"}
-                        </CardTitle>
-                        {selectedDay && selectedEvents.length > 0 && (
-                            <Badge variant="secondary" className="shrink-0">{selectedEvents.length}</Badge>
-                        )}
-                    </CardHeader>
-                    <Separator />
-                    <CardContent className="mt-3 space-y-3">
+                {/* Day agenda panel */}
+                <Card className="overflow-hidden border-border/70 shadow-sm lg:sticky lg:top-4 lg:self-start">
+                    {selectedDay ? (
+                        <div className="flex items-center gap-3 border-b bg-gradient-to-br from-violet-500/10 to-indigo-500/5 px-5 py-4">
+                            <div className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-xl border bg-background shadow-sm">
+                                <span className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                    {selectedDay.toLocaleDateString(undefined, { month: "short" })}
+                                </span>
+                                <span className="text-lg font-bold leading-none tabular-nums">{selectedDay.getDate()}</span>
+                            </div>
+                            <div className="min-w-0">
+                                <p className="truncate font-display text-base font-semibold">
+                                    {selectedDay.toLocaleDateString(undefined, { weekday: "long" })}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                    {selectedEvents.length === 0
+                                        ? "No events"
+                                        : `${selectedEvents.length} event${selectedEvents.length === 1 ? "" : "s"}`}
+                                </p>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="border-b bg-muted/20 px-5 py-4">
+                            <p className="font-display text-base font-semibold">Agenda</p>
+                            <p className="text-xs text-muted-foreground">Pick a day to see its schedule.</p>
+                        </div>
+                    )}
+
+                    <CardContent className="p-4">
                         {!selectedDay ? (
-                            <div className="flex flex-col items-center gap-2 py-8 text-center">
-                                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-                                    <CalendarRange className="h-5 w-5 text-muted-foreground" />
-                                </div>
-                                <p className="text-sm text-muted-foreground">Click a day to see its events.</p>
-                            </div>
+                            <PanelEmpty icon={CalendarRange} text="Click any day on the calendar." />
                         ) : selectedEvents.length === 0 ? (
-                            <div className="flex flex-col items-center gap-2 py-8 text-center">
-                                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-                                    <CalendarDays className="h-5 w-5 text-muted-foreground" />
-                                </div>
-                                <p className="text-sm text-muted-foreground">No events on this day.</p>
-                            </div>
+                            <PanelEmpty icon={CalendarDays} text="Nothing scheduled for this day." />
                         ) : (
-                            <div className="relative space-y-3">
+                            <ol className="relative space-y-3 before:absolute before:bottom-2 before:left-[15px] before:top-2 before:w-px before:bg-border before:content-['']">
                                 {selectedEvents.map((ev, index) => {
                                     const { label, icon: Icon, chip, iconWrap } = TYPE_CONFIG[ev.type];
                                     return (
-                                        <motion.div
-                                            key={ev.id}
+                                        <motion.li
+                                            key={`${ev.id}-${ev.startAt}`}
                                             initial={{ opacity: 0, x: -8 }}
                                             animate={{ opacity: 1, x: 0 }}
                                             transition={{ duration: 0.25, delay: index * 0.05, ease: "easeOut" }}
-                                            className="flex gap-3"
+                                            className="relative flex gap-3"
                                         >
-                                            <div className={cn("mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full", iconWrap)}>
+                                            <div className={cn(
+                                                "z-10 mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ring-4 ring-background",
+                                                iconWrap,
+                                            )}>
                                                 <Icon className="h-4 w-4" />
                                             </div>
-                                            <div className="min-w-0 flex-1 space-y-1 rounded-lg border p-3">
+                                            <div className="min-w-0 flex-1 space-y-1.5 rounded-lg border bg-card p-3 shadow-sm">
                                                 <div className="flex items-start justify-between gap-2">
                                                     <span className="text-sm font-medium leading-snug">{ev.title}</span>
                                                     {isTeacherOrAdmin && ev.source === "manual" && ev.id > 0 && !ev.isRecurrenceInstance && (
@@ -521,7 +646,7 @@ const CalendarPage = () => {
                                                             onClick={() => handleDelete(ev.id)}
                                                             aria-label={`Delete event: ${ev.title}`}
                                                             title={ev.recurrenceFreq && ev.recurrenceFreq !== "none" ? "Delete this entire series" : "Delete event"}
-                                                            className="shrink-0 text-muted-foreground hover:text-destructive"
+                                                            className="shrink-0 text-muted-foreground transition-colors hover:text-destructive"
                                                         >
                                                             <X className="h-3.5 w-3.5" aria-hidden="true" />
                                                         </button>
@@ -536,6 +661,17 @@ const CalendarPage = () => {
                                                         </Badge>
                                                     )}
                                                 </div>
+                                                <p className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                                                    <Clock className="h-3 w-3" />
+                                                    {isAllDayLike(ev)
+                                                        ? "All day"
+                                                        : (
+                                                            <>
+                                                                {new Date(ev.startAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+                                                                {ev.endAt && ` – ${new Date(ev.endAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`}
+                                                            </>
+                                                        )}
+                                                </p>
                                                 {ev.class && <p className="text-xs text-muted-foreground">{ev.class.name}</p>}
                                                 {ev.description && <p className="text-xs text-muted-foreground">{ev.description}</p>}
                                                 {ev.isRecurrenceInstance && (
@@ -543,17 +679,11 @@ const CalendarPage = () => {
                                                         Part of a recurring series — edit or delete the first occurrence to change it.
                                                     </p>
                                                 )}
-                                                {!ev.allDay && (
-                                                    <p className="text-xs text-muted-foreground">
-                                                        {new Date(ev.startAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                                                        {ev.endAt && ` – ${new Date(ev.endAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`}
-                                                    </p>
-                                                )}
                                             </div>
-                                        </motion.div>
+                                        </motion.li>
                                     );
                                 })}
-                            </div>
+                            </ol>
                         )}
                     </CardContent>
                 </Card>
