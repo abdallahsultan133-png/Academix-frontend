@@ -2,6 +2,7 @@ import { useGetIdentity } from "@refinedev/core";
 import { useParams } from "react-router";
 import { GraduationCap, Loader2, Download } from "lucide-react";
 import { PDFDownloadLink } from "@react-pdf/renderer";
+import { useDownload } from "@/hooks/use-download.ts";
 
 import { Breadcrumb } from "@/components/layout/breadcrumb.tsx";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card.tsx";
@@ -43,6 +44,7 @@ const gpaBadgeColor = (letter: string | null) => {
 
 const ReportCard = () => {
   const { id: routeStudentId } = useParams<{ id?: string }>();
+  const { narrateDownload } = useDownload();
   const { data: identity, isLoading: identityLoading } = useGetIdentity<User>();
   const targetStudentId = routeStudentId ?? identity?.id;
 
@@ -62,6 +64,7 @@ const ReportCard = () => {
     : null;
 
   const passCount = grades.filter((g) => g.letterGrade && g.letterGrade !== "F").length;
+  const pdfFileName = `report-card-${studentName.replace(/\s+/g, "-").toLowerCase()}.pdf`;
 
   if (identityLoading) return <div className="p-6"><Skeleton className="h-8 w-48" /></div>;
 
@@ -91,10 +94,13 @@ const ReportCard = () => {
                   passCount={passCount}
                 />
               }
-              fileName={`report-card-${studentName.replace(/\s+/g, "-").toLowerCase()}.pdf`}
+              fileName={pdfFileName}
             >
               {({ loading: pdfLoading }) => (
-                <Button disabled={pdfLoading}>
+                <Button
+                  disabled={pdfLoading}
+                  onClick={() => !pdfLoading && narrateDownload(pdfFileName)}
+                >
                   {pdfLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
                   Download PDF
                 </Button>

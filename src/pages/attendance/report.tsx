@@ -3,6 +3,7 @@ import { useGetIdentity, useList } from "@refinedev/core";
 import { toast } from "sonner";
 import { Download, Loader2, Printer } from "lucide-react";
 import { PDFDownloadLink } from "@react-pdf/renderer";
+import { useDownload } from "@/hooks/use-download.ts";
 
 import { Breadcrumb } from "@/components/layout/breadcrumb.tsx";
 import { Card } from "@/components/ui/card.tsx";
@@ -38,6 +39,7 @@ const rateColor = (rate: number | null) => {
 const AttendanceReport = () => {
   const { data: identity } = useGetIdentity<User>();
   const isStudent = identity?.role === UserRole.STUDENT;
+  const { narrateDownload } = useDownload();
 
   const [classId, setClassId] = useState<string>("");
   const [rows, setRows] = useState<ReportRow[]>([]);
@@ -83,6 +85,7 @@ const AttendanceReport = () => {
   }, [classId]);
 
   const selectedClassName = classes.find((c) => String(c.id) === classId)?.name ?? "";
+  const pdfFileName = `attendance-report-${selectedClassName.replace(/\s+/g, "-").toLowerCase() || classId}.pdf`;
 
   return (
     <div className="attendance-report space-y-6">
@@ -116,10 +119,13 @@ const AttendanceReport = () => {
           {!loading && rows.length > 0 && (
             <PDFDownloadLink
               document={<AttendanceReportDocument className={selectedClassName} rows={rows} />}
-              fileName={`attendance-report-${selectedClassName.replace(/\s+/g, "-").toLowerCase() || classId}.pdf`}
+              fileName={pdfFileName}
             >
               {({ loading: pdfLoading }) => (
-                <Button disabled={pdfLoading}>
+                <Button
+                  disabled={pdfLoading}
+                  onClick={() => !pdfLoading && narrateDownload(pdfFileName)}
+                >
                   {pdfLoading ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Download className="mr-1.5 h-4 w-4" />}
                   Download PDF
                 </Button>

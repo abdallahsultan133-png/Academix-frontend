@@ -12,13 +12,14 @@ import { Input } from "@/components/ui/input.tsx";
 import { Label } from "@/components/ui/label.tsx";
 import { Textarea } from "@/components/ui/textarea.tsx";
 import { Separator } from "@/components/ui/separator.tsx";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar.tsx";
 import { Badge } from "@/components/ui/badge.tsx";
 import { BACKEND_BASE_URL } from "@/constants";
 import { useApiQuery } from "@/hooks/use-api-query.ts";
 import { UserRole, type User as UserType } from "@/types";
 import { useTheme } from "@/components/refine-ui/theme/theme-provider.tsx";
 import { Switch } from "@/components/ui/switch.tsx";
+import { ChangePasswordCard } from "@/components/profile/change-password-card.tsx";
+import { AvatarUploader } from "@/components/profile/avatar-uploader.tsx";
 
 type StudentProfile = {
     registrationNumber: string | null;
@@ -30,8 +31,6 @@ type StudentProfile = {
     parentEmail: string | null;
     bio: string | null;
 };
-
-const getInitials = (name = "") => name.trim().split(" ").filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join("");
 
 const ROLE_LABELS: Record<UserRole, string> = {
     [UserRole.STUDENT]: "Student", [UserRole.TEACHER]: "Teacher",
@@ -89,16 +88,14 @@ const ProfilePage = () => {
             <Card>
                 <CardHeader><CardTitle>Account</CardTitle></CardHeader>
                 <Separator />
-                <CardContent className="mt-4 flex items-center gap-4">
-                    <Avatar className="h-16 w-16">
-                        {identity?.image && <AvatarImage src={identity.image} />}
-                        <AvatarFallback className="text-lg">{getInitials(identity?.name)}</AvatarFallback>
-                    </Avatar>
+                <CardContent className="mt-4 space-y-5">
                     <div>
                         <p className="text-lg font-semibold">{identity?.name}</p>
                         <p className="text-sm text-muted-foreground">{identity?.email}</p>
                         {identity?.role && <Badge variant="outline" className="mt-1">{ROLE_LABELS[identity.role]}</Badge>}
                     </div>
+                    <Separator />
+                    <AvatarUploader />
                 </CardContent>
             </Card>
 
@@ -119,6 +116,9 @@ const ProfilePage = () => {
                     </CardContent>
                 </Card>
             )}
+
+            {/* Security */}
+            <ChangePasswordCard />
 
             {/* Appearance */}
             <Card>

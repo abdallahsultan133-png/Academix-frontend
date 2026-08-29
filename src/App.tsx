@@ -20,6 +20,7 @@ import { authProvider } from "@/providers/auth";
 import { RequireRole } from "@/components/layout/require-role.tsx";
 import { ErrorBoundary } from "@/components/layout/error-boundary.tsx";
 import { PageLoader } from "@/components/layout/page-loader.tsx";
+import { DownloadDialogProvider } from "@/components/download-dialog.tsx";
 import { UserRole } from "@/types";
 
 // Route-level code splitting: each page is fetched only when its route is
@@ -56,6 +57,8 @@ const EnrollStudents = lazy(() => import("@/pages/classes/enroll.tsx"));
 const AuditLogsPage = lazy(() => import("@/pages/admin/audit-logs.tsx"));
 const Login = lazy(() => import("@/pages/auth/login"));
 const Register = lazy(() => import("@/pages/auth/register"));
+const ForgotPassword = lazy(() => import("@/pages/auth/forgot-password.tsx"));
+const ResetPassword = lazy(() => import("@/pages/auth/reset-password.tsx"));
 
 const STAFF_ROLES = [UserRole.TEACHER, UserRole.ADMIN, UserRole.SUPER_ADMIN];
 const ADMIN_ROLES = [UserRole.ADMIN, UserRole.SUPER_ADMIN];
@@ -73,6 +76,7 @@ function App() {
     <BrowserRouter>
       <RefineKbarProvider>
         <ThemeProvider>
+          <DownloadDialogProvider>
           <Suspense fallback={<PageLoader />}>
           <Devtools>
               <Refine
@@ -161,6 +165,8 @@ function App() {
 
                       <Route path="/login" element={<Login />} />
                       <Route path="/register" element={<Register />} />
+                      <Route path="/forgot-password" element={<ForgotPassword />} />
+                      <Route path="/reset-password" element={<ResetPassword />} />
 
                       <Route
                           element={
@@ -245,6 +251,7 @@ function App() {
             </Refine>
           </Devtools>
           </Suspense>
+          </DownloadDialogProvider>
         </ThemeProvider>
       </RefineKbarProvider>
     </BrowserRouter>

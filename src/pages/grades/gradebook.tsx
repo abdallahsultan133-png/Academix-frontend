@@ -5,6 +5,7 @@ import { Link } from "react-router";
 import { toast } from "sonner";
 import { BookOpenCheck, Download, Loader2, Printer, Save } from "lucide-react";
 import { PDFDownloadLink } from "@react-pdf/renderer";
+import { useDownload } from "@/hooks/use-download.ts";
 
 import { Breadcrumb } from "@/components/layout/breadcrumb.tsx";
 import { Card } from "@/components/ui/card.tsx";
@@ -46,6 +47,7 @@ const Gradebook = () => {
   const isStudent = identity?.role === UserRole.STUDENT;
 
   const queryClient = useQueryClient();
+  const { narrateDownload } = useDownload();
   const [classId, setClassId] = useState("");
   const [overrides, setOverrides] = useState<Record<string, { finalGrade: string; remarks: string }>>({});
   const [saving, setSaving] = useState(false);
@@ -68,6 +70,7 @@ const Gradebook = () => {
   const { data: gradebookData, isLoading: loading } = useApiQuery<{ data: GradebookRow[] }>(gradebookPath);
   const rows = gradebookData?.data ?? [];
   const selectedClassName = classes.find((c) => String(c.id) === classId)?.name ?? "";
+  const pdfFileName = `gradebook-${selectedClassName.replace(/\s+/g, "-").toLowerCase() || classId}.pdf`;
 
   // Resets the editable override inputs whenever a fresh gradebook loads (class switch or after save).
   useEffect(() => {
@@ -136,10 +139,13 @@ const Gradebook = () => {
           {!loading && rows.length > 0 && (
             <PDFDownloadLink
               document={<GradebookDocument className={selectedClassName} rows={rows} />}
-              fileName={`gradebook-${selectedClassName.replace(/\s+/g, "-").toLowerCase() || classId}.pdf`}
+              fileName={pdfFileName}
             >
               {({ loading: pdfLoading }) => (
-                <Button disabled={pdfLoading}>
+                <Button
+                  disabled={pdfLoading}
+                  onClick={() => !pdfLoading && narrateDownload(pdfFileName)}
+                >
                   {pdfLoading ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Download className="mr-1.5 h-4 w-4" />}
                   Download PDF
                 </Button>

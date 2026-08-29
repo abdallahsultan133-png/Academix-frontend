@@ -343,6 +343,18 @@
     --shadow-2xl: 0px 1px 2px 0px hsl(0 0% 0% / 0.45);
     --tracking-normal: 0em;
     --spacing: 0.25rem;
+
+    /* ── Data-viz palette (validated with the dataviz skill's checks) ──────
+       Charts are where colour lives — the rest of the app stays monochrome.
+       Categorical order is fixed (blue → orange → aqua); status is the
+       traffic-light triple and never re-themed; the grade chart is one hue. */
+    --viz-cat-1: #2a78d6;   /* categorical slot 1 — blue   */
+    --viz-cat-2: #eb6834;   /* categorical slot 2 — orange */
+    --viz-cat-3: #1baf7a;   /* categorical slot 3 — aqua   */
+    --viz-good: #0ca30c;    /* status — present / on-track  */
+    --viz-warning: #fab219; /* status — late / at-risk      */
+    --viz-critical: #d03b3b;/* status — absent / failing    */
+    --viz-primary: #2a78d6; /* single-hue series (grade distribution) */
 }
 
 .dark {
@@ -378,6 +390,16 @@
     --sidebar-accent-foreground: oklch(1 0 0);
     --sidebar-border: oklch(0.3200 0 0);
     --sidebar-ring: oklch(0.7200 0 0);
+
+    /* Data-viz — steps re-picked for the dark surface (status stays fixed). */
+    --viz-cat-1: #3987e5;
+    --viz-cat-2: #d95926;
+    --viz-cat-3: #199e70;
+    --viz-good: #0ca30c;
+    --viz-warning: #fab219;
+    --viz-critical: #d03b3b;
+    --viz-primary: #3987e5;
+
     --font-sans: Geist, sans-serif;
     --font-serif: Georgia, serif;
     --font-mono: Geist Mono, monospace;

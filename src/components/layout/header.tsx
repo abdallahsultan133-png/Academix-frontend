@@ -1,22 +1,99 @@
 import { UserAvatar } from "@/components/layout/user-avatar.tsx";
 import { NotificationsBell } from "@/components/layout/notifications-bell.tsx";
 import { ThemeToggle } from "@/components/refine-ui/theme/theme-toggle.tsx";
+import { Badge } from "@/components/ui/badge.tsx";
+import { Button } from "@/components/ui/button.tsx";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu.tsx";
-import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar.tsx";
+import { useSidebar } from "@/components/ui/sidebar.tsx";
 import { cn } from "@/lib/utils.ts";
+import { PAGE_META } from "@/constants";
+import { UserRole, type User } from "@/types";
 import {
   useActiveAuthProvider,
+  useGetIdentity,
   useLogout,
+  useMenu,
   useRefineOptions,
+  type TreeMenuItem,
 } from "@refinedev/core";
+import { useKBar } from "kbar";
 import { Link } from "react-router";
-import { LogOutIcon, UserIcon } from "lucide-react";
+import {
+  LogOutIcon,
+  UserIcon,
+  Menu,
+  X,
+  Search,
+  Plus,
+  School,
+  BookOpen,
+  Megaphone,
+  ClipboardCheck,
+  FileText,
+  Building2,
+  BarChart3,
+  Users,
+  type LucideIcon,
+} from "lucide-react";
+
+const ROLE_LABELS: Record<UserRole, string> = {
+  [UserRole.ADMIN]: "Admin",
+  [UserRole.SUPER_ADMIN]: "Admin",
+  [UserRole.TEACHER]: "Teacher",
+  [UserRole.STUDENT]: "Student",
+  [UserRole.PARENT]: "Parent",
+};
+
+type QuickAction = { label: string; href: string; icon: LucideIcon };
+
+function quickActionsForRole(role?: UserRole): QuickAction[] {
+  if (role === UserRole.ADMIN || role === UserRole.SUPER_ADMIN) {
+    return [
+      { label: "Manage Users", href: "/users", icon: Users },
+      { label: "Create Class", href: "/classes/create", icon: School },
+      { label: "Add Subject", href: "/subjects/create", icon: BookOpen },
+      { label: "Send Announcement", href: "/announcements/create", icon: Megaphone },
+      { label: "Departments", href: "/admin/departments", icon: Building2 },
+    ];
+  }
+  if (role === UserRole.TEACHER) {
+    return [
+      { label: "Create Assignment", href: "/assignments/create", icon: FileText },
+      { label: "Mark Attendance", href: "/attendance", icon: ClipboardCheck },
+      { label: "Post Announcement", href: "/announcements/create", icon: Megaphone },
+    ];
+  }
+  if (role === UserRole.STUDENT) {
+    return [
+      { label: "View Assignments", href: "/assignments", icon: FileText },
+      { label: "View Grades", href: "/grades", icon: BarChart3 },
+    ];
+  }
+  if (role === UserRole.PARENT) {
+    return [{ label: "My Children", href: "/parent", icon: Users }];
+  }
+  return [];
+}
+
+function getDisplayName(item?: TreeMenuItem) {
+  return item?.meta?.label ?? item?.label ?? item?.name;
+}
+
+function usePageTitle() {
+  const { menuItems, selectedKey } = useMenu();
+  const current = (menuItems as TreeMenuItem[]).find((item) => item.key === selectedKey);
+  return {
+    title: getDisplayName(current) ?? "Dashboard",
+    description: current ? PAGE_META[current.name] : undefined,
+  };
+}
 
 export const Header = () => {
   const { isMobile } = useSidebar();
@@ -25,6 +102,8 @@ export const Header = () => {
 };
 
 function DesktopHeader() {
+  const { title, description } = usePageTitle();
+
   return (
     <header
       className={cn(
@@ -38,20 +117,46 @@ function DesktopHeader() {
         "border-b",
         "border-border",
         "bg-sidebar",
+        "pl-5",
         "pr-3",
-        "justify-end",
+        "justify-between",
         "z-40"
       )}
     >
-      <ThemeToggle />
-      <NotificationsBell />
-      <UserDropdown />
+      <div className="min-w-0">
+        <h1 className="truncate text-base font-semibold leading-tight">{title}</h1>
+        {description && <p className="truncate text-xs text-muted-foreground">{description}</p>}
+      </div>
+
+      <div className="flex shrink-0 items-center gap-1.5">
+        <SearchButton />
+        <QuickActionMenu />
+        <ThemeToggle />
+        <NotificationsBell />
+        <UserDropdown />
+      </div>
     </header>
   );
 }
 
+function MobileMenuButton() {
+    const { openMobile, setOpenMobile } = useSidebar();
+
+    return (
+        <Button
+            variant="ghost"
+            size="icon"
+            className="ml-1 h-8 w-8 text-muted-foreground"
+            aria-label={openMobile ? "Close navigation menu" : "Open navigation menu"}
+            aria-expanded={openMobile}
+            onClick={() => setOpenMobile(!openMobile)}
+        >
+            {openMobile ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+        </Button>
+    );
+}
+
 function MobileHeader() {
-    const { open } = useSidebar();
     const { title } = useRefineOptions();
 
     return (
@@ -73,39 +178,18 @@ function MobileHeader() {
             )}
         >
 
-            <SidebarTrigger
-                className={cn(
-                    "text-muted-foreground",
-                    "rotate-180",
-                    "ml-1",
-                    "rounded-md",
-                    "transition-all",
-                    "duration-200",
-                    "hover:bg-black/10",
-                    "dark:hover:bg-white/10"
-                )}
-            />
+            <MobileMenuButton />
 
-
-            {/* Show title only when mobile sidebar is open */}
-            <div
-                className={cn(
-                    "flex",
-                    "items-center",
-                    "gap-2",
-                    "transition-opacity",
-                    "duration-200",
-                    {
-                        "opacity-100": open,
-                        "opacity-0": !open,
-                    }
-                )}
-            >
-                <h2 className="font-display bg-gradient-to-r from-violet-500 to-indigo-500 bg-clip-text text-sm font-extrabold tracking-tight text-transparent">
+            <div className="flex items-center gap-2">
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground [&>svg]:h-4 [&>svg]:w-4">
+                    {title.icon}
+                </span>
+                <h2 className="text-sm font-semibold tracking-tight text-foreground">
                     {title.text}
                 </h2>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
+                <SearchButton className="h-8 w-8" />
                 <ThemeToggle className={cn("h-8", "w-8")} />
                 <NotificationsBell />
                 <UserDropdown />
@@ -116,8 +200,56 @@ function MobileHeader() {
     );
 }
 
+function SearchButton({ className }: { className?: string }) {
+  const { query } = useKBar();
+
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      aria-label="Search (Ctrl+K)"
+      title="Search (Ctrl+K)"
+      className={className}
+      onClick={() => query.toggle()}
+    >
+      <Search className="h-[1.1rem] w-[1.1rem]" />
+    </Button>
+  );
+}
+
+function QuickActionMenu() {
+  const { data: identity } = useGetIdentity<User>();
+  const actions = quickActionsForRole(identity?.role);
+
+  if (actions.length === 0) return null;
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" size="sm" className="hidden gap-1.5 sm:inline-flex">
+          <Plus className="h-4 w-4" />
+          Quick Action
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuLabel>Quick Actions</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        {actions.map((action) => (
+          <DropdownMenuItem key={action.label} asChild>
+            <Link to={action.href} className="flex items-center gap-2 cursor-pointer">
+              <action.icon className="h-4 w-4" />
+              {action.label}
+            </Link>
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 const UserDropdown = () => {
   const { mutate: logout, isPending: isLoggingOut } = useLogout();
+  const { data: identity } = useGetIdentity<User>();
 
   const authProvider = useActiveAuthProvider();
 
@@ -126,32 +258,39 @@ const UserDropdown = () => {
   }
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger aria-label="Open account menu">
-        <UserAvatar />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem asChild>
-          <Link to="/profile" className="flex items-center gap-2 cursor-pointer">
-            <UserIcon className="h-4 w-4" />
-            Profile & Settings
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          onClick={() => {
-            logout();
-          }}
-        >
-          <LogOutIcon
-            className={cn("text-destructive", "hover:text-destructive")}
-          />
-          <span className={cn("text-destructive", "hover:text-destructive")}>
-            {isLoggingOut ? "Logging out..." : "Logout"}
-          </span>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <div className="flex items-center gap-2">
+      {identity?.role && (
+        <Badge variant="secondary" className="hidden sm:inline-flex">
+          {ROLE_LABELS[identity.role]}
+        </Badge>
+      )}
+      <DropdownMenu>
+        <DropdownMenuTrigger aria-label="Open account menu">
+          <UserAvatar />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem asChild>
+            <Link to="/profile" className="flex items-center gap-2 cursor-pointer">
+              <UserIcon className="h-4 w-4" />
+              Profile & Settings
+            </Link>
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onClick={() => {
+              logout();
+            }}
+          >
+            <LogOutIcon
+              className={cn("text-destructive", "hover:text-destructive")}
+            />
+            <span className={cn("text-destructive", "hover:text-destructive")}>
+              {isLoggingOut ? "Logging out..." : "Logout"}
+            </span>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   );
 };
 

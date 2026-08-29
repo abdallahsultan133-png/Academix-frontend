@@ -110,6 +110,9 @@ const AssignmentsCreate = () => {
               <div className="space-y-2">
                 <Label>Due date</Label>
                 <Input type="datetime-local" value={dueAt} onChange={(e) => setDueAt(e.target.value)} />
+                <p className="text-xs text-muted-foreground">
+                  Students see a live countdown to this moment; submissions close automatically once it passes.
+                </p>
               </div>
               <div className="space-y-2">
                 <Label>Max score</Label>

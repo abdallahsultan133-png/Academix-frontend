@@ -1,13 +1,24 @@
 import { useEffect, useState, useCallback } from "react";
-import { useParams } from "react-router";
+import { useNavigate, useParams } from "react-router";
 import { useGetIdentity } from "@refinedev/core";
 import { toast } from "sonner";
-import { CalendarClock, CheckCircle2, File as FileIcon, Loader2, Sparkles } from "lucide-react";
+import { CheckCircle2, File as FileIcon, Loader2, Sparkles, Trash2 } from "lucide-react";
 
 import { Breadcrumb } from "@/components/layout/breadcrumb.tsx";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { Badge } from "@/components/ui/badge.tsx";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog.tsx";
 import { Textarea } from "@/components/ui/textarea.tsx";
 import { Input } from "@/components/ui/input.tsx";
 import { Separator } from "@/components/ui/separator.tsx";
@@ -21,6 +32,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog.tsx";
 import FileUploadWidget, { type FileUploadValue } from "@/components/file-upload-widget.tsx";
+import { DeadlineCountdown } from "@/components/deadline-countdown.tsx";
 import { BACKEND_BASE_URL } from "@/constants";
 import type { User } from "@/types";
 
@@ -80,11 +92,13 @@ const statusBadge = (status: Submission["status"]) => {
 
 const AssignmentShow = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { data: identity } = useGetIdentity<User>();
   const isTeacherOrAdmin = identity?.role === "teacher" || identity?.role === "admin" || identity?.role === "super_admin";
 
   const [assignment, setAssignment] = useState<AssignmentDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(false);
 
   const [content, setContent] = useState("");
   const [file, setFile] = useState<FileUploadValue | null>(null);
@@ -161,6 +175,22 @@ const AssignmentShow = () => {
     }
   };
 
+  const handleDeleteAssignment = async () => {
+    setDeleting(true);
+    try {
+      const res = await fetch(`${BACKEND_BASE_URL}/assignments/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error((await res.json())?.message ?? "Failed to delete assignment");
+      toast.success("Assignment deleted.");
+      navigate("/assignments");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to delete assignment");
+      setDeleting(false);
+    }
+  };
+
   const handleGrade = async (submissionId: number) => {
     const draft = gradeDrafts[submissionId];
     if (!draft?.score.trim()) return toast.error("Enter a score first.");
@@ -217,17 +247,52 @@ const AssignmentShow = () => {
               <CardTitle className="text-2xl">{assignment.title}</CardTitle>
               <p className="mt-1 text-sm text-muted-foreground">{assignment.class.name} · by {assignment.creator.name}</p>
             </div>
-            <Badge variant="outline">{assignment.maxScore} pts</Badge>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline">{assignment.maxScore} pts</Badge>
+              {isTeacherOrAdmin && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    >
+                      <Trash2 className="mr-1.5 h-4 w-4" /> Delete
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete this assignment?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        &ldquo;{assignment.title}&rdquo;
+                        {submissions && submissions.length > 0
+                          ? ` and its ${submissions.length} submission${submissions.length === 1 ? "" : "s"}`
+                          : ""}{" "}
+                        will be permanently removed. This can&rsquo;t be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={handleDeleteAssignment}
+                        disabled={deleting}
+                        className="bg-destructive text-white hover:bg-destructive/90"
+                      >
+                        {deleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Delete assignment
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
+            </div>
           </div>
         </CardHeader>
         <Separator />
         <CardContent className="mt-4 space-y-4">
           {assignment.description && <p className="whitespace-pre-wrap text-sm">{assignment.description}</p>}
 
-          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-            <CalendarClock className="h-4 w-4" />
-            {assignment.dueAt ? `Due ${new Date(assignment.dueAt).toLocaleString()}` : "No due date set"}
-          </div>
+          <DeadlineCountdown dueAt={assignment.dueAt} variant="panel" />
 
           {assignment.attachmentUrl && (
             <a

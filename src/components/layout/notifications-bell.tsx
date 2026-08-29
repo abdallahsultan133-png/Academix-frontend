@@ -130,12 +130,12 @@ export function NotificationsBell() {
                                     onClick={() => !n.read && markRead(n.id)}
                                     className={cn(
                                         "flex gap-3 px-4 py-3 cursor-pointer hover:bg-muted/50 transition-colors",
-                                        !n.read && "bg-blue-50/60"
+                                        !n.read && "bg-blue-50/60 dark:bg-blue-950/30"
                                     )}
                                 >
                                     <div className={cn("mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
-                                        n.read ? "bg-muted" : "bg-blue-100")}>
-                                        <Icon className={cn("h-4 w-4", n.read ? "text-muted-foreground" : "text-blue-600")} />
+                                        n.read ? "bg-muted" : "bg-blue-100 dark:bg-blue-900/50")}>
+                                        <Icon className={cn("h-4 w-4", n.read ? "text-muted-foreground" : "text-blue-600 dark:text-blue-400")} />
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-start justify-between gap-1">

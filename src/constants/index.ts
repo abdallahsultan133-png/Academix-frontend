@@ -68,4 +68,18 @@ export const REFRESH_TOKEN_URL = `${BASE_URL}/refresh-token`;
 
 export const CLOUDINARY_UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
 
+// One-line context shown under the page title in the global header, keyed by
+// Refine resource name (see the `resources` list in App.tsx). Routes with no
+// matching resource (e.g. /profile) simply render without a description.
+export const PAGE_META: Record<string, string> = {
+    dashboard: "Your school at a glance.",
+    subjects: "Manage the subjects taught across your school.",
+    classes: "Browse and manage classes.",
+    attendance: "Record and review attendance.",
+    assignments: "Create and track assignments.",
+    announcements: "Post and read school announcements.",
+    grades: "Gradebook, exams, and report cards.",
+    calendar: "Classes, exams, and deadlines on one timeline.",
+    messages: "Direct messages with your school community.",
+};
 

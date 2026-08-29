@@ -1,0 +1,129 @@
+import {
+    Building2,
+    FileText,
+    ClipboardCheck,
+    GraduationCap,
+    BarChart3,
+    Megaphone,
+} from "lucide-react";
+import { motion } from "framer-motion";
+import { useGetIdentity } from "@refinedev/core";
+import { AttendanceOverviewChart } from "@/components/dashboard/attendance-overview-chart";
+import { PerformanceChart } from "@/components/dashboard/performance-chart";
+import { ClassActivityChart } from "@/components/dashboard/class-activity-chart";
+import { UpcomingEvents } from "@/components/dashboard/upcoming-events";
+import { RecentActivity } from "@/components/dashboard/recent-activity";
+import { StatCard } from "@/components/dashboard/stat-card";
+import { QuickActions, type QuickAction } from "@/components/dashboard/quick-actions";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useApiQuery } from "@/hooks/use-api-query.ts";
+import type { User } from "@/types";
+
+type StudentStats = {
+    classes: number;
+    attendanceRate: number | null;
+    pendingAssignments?: number;
+    trends: {
+        attendanceRate?: number | null;
+    };
+};
+
+type ClassGrade = { classId: number; finalGrade: number | null; letterGrade: string | null; gpa: string | null };
+
+const QUICK_ACTIONS: QuickAction[] = [
+    { label: "View Assignments", href: "/assignments", icon: FileText },
+    { label: "View Grades", href: "/grades", icon: BarChart3 },
+    { label: "Attendance", href: "/attendance", icon: ClipboardCheck },
+    { label: "Announcements", href: "/announcements", icon: Megaphone },
+];
+
+const StudentDashboard = () => {
+    const { data: identity } = useGetIdentity<User>();
+    const { data: stats, isLoading } = useApiQuery<StudentStats>("/dashboard/stats");
+    const { data: gradesData } = useApiQuery<{ data: ClassGrade[] }>(
+        identity?.id ? `/grades/student/${identity.id}` : null
+    );
+
+    const grades = gradesData?.data ?? [];
+    const avgGPA = grades.length > 0
+        ? (grades.reduce((s, g) => s + Number(g.gpa ?? 0), 0) / grades.length).toFixed(2)
+        : null;
+
+    const hasAttendanceRate = stats?.attendanceRate !== null && stats?.attendanceRate !== undefined;
+
+    const statCards = [
+        { title: "My Classes", value: stats?.classes ?? 0, icon: Building2, color: "purple" as const, description: "Currently enrolled" },
+        { title: "Pending Assignments", value: stats?.pendingAssignments ?? 0, icon: FileText, color: (stats?.pendingAssignments ? "amber" : "green") as "amber" | "green", description: "Awaiting your submission" },
+        {
+            title: "Attendance (30d)",
+            value: hasAttendanceRate ? `${stats!.attendanceRate}%` : "—",
+            icon: ClipboardCheck,
+            color: (hasAttendanceRate && (stats?.attendanceRate ?? 0) >= 75 ? "green" : "amber") as "green" | "amber",
+            description: "Your attendance",
+            percent: hasAttendanceRate ? stats!.attendanceRate! : undefined,
+            trendValue: stats?.trends.attendanceRate,
+        },
+        { title: "GPA", value: avgGPA ?? "—", icon: GraduationCap, color: "blue" as const, description: "Average across your classes" },
+    ];
+
+    return (
+        <div className="space-y-6">
+            <motion.div
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.35, ease: "easeOut" }}
+            >
+                <h1 className="font-display text-3xl font-bold tracking-tight">
+                    Welcome back{identity?.name ? `, ${identity.name.split(" ")[0]}` : ""}
+                </h1>
+                <p className="text-muted-foreground">
+                    Here's how you're doing this term.
+                </p>
+            </motion.div>
+
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                {isLoading ? (
+                    Array.from({ length: 4 }).map((_, i) => (
+                        <Skeleton key={i} className="h-[92px] w-full rounded-xl" />
+                    ))
+                ) : (
+                    statCards.map((item, index) => (
+                        <StatCard
+                            key={item.title}
+                            title={item.title}
+                            value={String(item.value)}
+                            icon={item.icon}
+                            color={item.color}
+                            description={item.description}
+                            index={index}
+                            percent={"percent" in item ? item.percent : undefined}
+                            trendValue={"trendValue" in item ? item.trendValue : undefined}
+                        />
+                    ))
+                )}
+            </div>
+
+            {/* Personal analytics — every endpoint below is scoped to this
+                student server-side (own attendance, own class grades, own
+                enrolled classes). */}
+            <div className="grid gap-4 lg:grid-cols-2">
+                <AttendanceOverviewChart personal />
+                <PerformanceChart personal />
+            </div>
+
+            <div className="grid gap-4 lg:grid-cols-3">
+                <div className="lg:col-span-2">
+                    <ClassActivityChart personal />
+                </div>
+                <RecentActivity />
+            </div>
+
+            <div className="grid gap-4 lg:grid-cols-2">
+                <UpcomingEvents />
+                <QuickActions actions={QUICK_ACTIONS} description="Get to your classwork faster." />
+            </div>
+        </div>
+    );
+};
+
+export default StudentDashboard;
