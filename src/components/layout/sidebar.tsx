@@ -300,7 +300,7 @@ function NavItemRow({
       <span
         aria-hidden="true"
         className={cn(
-          "absolute rounded-full bg-foreground transition-all duration-200 ease-out",
+          "absolute rounded-full bg-foreground transition-all duration-150 ease-out",
           collapsed
             ? "left-0 top-1/2 h-4 -translate-y-1/2"
             : "-left-2.5 top-1/2 h-5 -translate-y-1/2",
