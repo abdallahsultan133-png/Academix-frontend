@@ -339,27 +339,16 @@
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* Pages fade in on mount */
-.class-view,
-.attendance-mark,
-.attendance-report,
-.assignments-list,
-.assignments-create,
-.assignment-show,
-.announcements-list,
-.announcements-create,
-.gradebook,
-.exams-page,
-.report-card,
-.calendar-page,
-.messages-page,
-.audit-logs,
-.enroll-students,
-.student-profile,
-.parent-dashboard,
-.profile-page,
-.users-list {
+/* Route content fades in on every navigation (Layout re-keys this element on
+   the pathname). */
+.animate-page {
   animation: fadeInUp 0.25s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-page {
+    animation: none;
+  }
 }
 
 /* Cards hover lift */

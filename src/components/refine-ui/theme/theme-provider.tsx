@@ -46,6 +46,11 @@ export function ThemeProvider({
         : theme;
     root.classList.add(resolved);
 
+    // Keep the mobile browser chrome (address bar) in step with the theme.
+    document
+      .querySelector('meta[name="theme-color"]')
+      ?.setAttribute("content", resolved === "dark" ? "#000000" : "#ffffff");
+
     // Only animate the palette cross-fade when the user actually toggles the
     // theme — never on the initial mount (that would fade the whole page in).
     if (firstRun.current) {

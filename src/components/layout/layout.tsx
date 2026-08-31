@@ -4,6 +4,7 @@ import { Header } from "@/components/layout/header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar.tsx";
 import { cn } from "@/lib/utils.ts";
 import type { CSSProperties, PropsWithChildren } from "react";
+import { useLocation } from "react-router";
 import { Sidebar } from "./sidebar.tsx";
 
 // Desktop starts expanded, but a user's explicit collapse/expand choice is
@@ -16,6 +17,7 @@ function getDefaultSidebarOpen() {
 }
 
 export function Layout({ children }: PropsWithChildren) {
+  const { pathname } = useLocation();
   return (
       <SidebarProvider
         defaultOpen={getDefaultSidebarOpen()}
@@ -45,7 +47,11 @@ export function Layout({ children }: PropsWithChildren) {
                   "print:p-0"
               )}
           >
-            {children}
+            {/* Re-keyed on the route so every navigation replays the entrance
+                fade — replaces the old hardcoded per-page class list in App.css. */}
+            <div key={pathname} className="animate-page min-w-0">
+              {children}
+            </div>
           </main>
 
         </SidebarInset>
