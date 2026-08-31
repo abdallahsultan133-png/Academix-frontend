@@ -9,7 +9,7 @@ import { PageHeader } from "@/components/layout/page-header.tsx";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { Input } from "@/components/ui/input.tsx";
-import { Label } from "@/components/ui/label.tsx";
+import { Field } from "@/components/ui/field.tsx";
 import { Textarea } from "@/components/ui/textarea.tsx";
 import { Separator } from "@/components/ui/separator.tsx";
 import { Badge } from "@/components/ui/badge.tsx";
@@ -121,10 +121,11 @@ const ProfilePage = () => {
                 <Separator />
                 <CardContent className="mt-4 flex items-center justify-between">
                     <div>
-                        <p className="text-sm font-medium">Dark mode</p>
+                        <p id="dark-mode-label" className="text-sm font-medium">Dark mode</p>
                         <p className="text-xs text-muted-foreground">Switch between light and dark theme.</p>
                     </div>
                     <Switch
+                        aria-labelledby="dark-mode-label"
                         checked={theme === "dark"}
                         onCheckedChange={(v) => setTheme(v ? "dark" : "light")}
                     />
@@ -138,46 +139,38 @@ const ProfilePage = () => {
                     <Separator />
                     <CardContent className="mt-4 space-y-4">
                         <div className="grid gap-4 sm:grid-cols-2">
-                            <div className="space-y-2">
-                                <Label>Registration Number</Label>
+                            <Field label="Registration Number">
                                 <Input value={profile.registrationNumber ?? ""} onChange={(e) => setProfile((p) => ({ ...p, registrationNumber: e.target.value }))} placeholder="STU-2024-001" />
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Date of Birth</Label>
+                            </Field>
+                            <Field label="Date of Birth">
                                 <Input type="date" value={profile.dateOfBirth ?? ""} onChange={(e) => setProfile((p) => ({ ...p, dateOfBirth: e.target.value }))} />
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Phone</Label>
+                            </Field>
+                            <Field label="Phone">
                                 <Input value={profile.phone ?? ""} onChange={(e) => setProfile((p) => ({ ...p, phone: e.target.value }))} placeholder="+255..." />
-                            </div>
-                            <div className="space-y-2 sm:col-span-2">
-                                <Label>Address</Label>
+                            </Field>
+                            <Field label="Address" className="sm:col-span-2">
                                 <Input value={profile.address ?? ""} onChange={(e) => setProfile((p) => ({ ...p, address: e.target.value }))} />
-                            </div>
+                            </Field>
                         </div>
 
                         <Separator />
                         <p className="text-sm font-medium">Parent / Guardian</p>
 
                         <div className="grid gap-4 sm:grid-cols-2">
-                            <div className="space-y-2">
-                                <Label>Parent Name</Label>
+                            <Field label="Parent Name">
                                 <Input value={profile.parentName ?? ""} onChange={(e) => setProfile((p) => ({ ...p, parentName: e.target.value }))} />
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Parent Phone</Label>
+                            </Field>
+                            <Field label="Parent Phone">
                                 <Input value={profile.parentPhone ?? ""} onChange={(e) => setProfile((p) => ({ ...p, parentPhone: e.target.value }))} />
-                            </div>
-                            <div className="space-y-2 sm:col-span-2">
-                                <Label>Parent Email</Label>
+                            </Field>
+                            <Field label="Parent Email" className="sm:col-span-2">
                                 <Input type="email" value={profile.parentEmail ?? ""} onChange={(e) => setProfile((p) => ({ ...p, parentEmail: e.target.value }))} />
-                            </div>
+                            </Field>
                         </div>
 
-                        <div className="space-y-2">
-                            <Label>Bio</Label>
+                        <Field label="Bio">
                             <Textarea value={profile.bio ?? ""} onChange={(e) => setProfile((p) => ({ ...p, bio: e.target.value }))} rows={3} placeholder="A short bio..." />
-                        </div>
+                        </Field>
 
                         <Button onClick={handleSave} disabled={saving}>
                             {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

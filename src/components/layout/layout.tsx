@@ -23,13 +23,21 @@ export function Layout({ children }: PropsWithChildren) {
         defaultOpen={getDefaultSidebarOpen()}
         style={{ "--sidebar-width-icon": "3.25rem" } as CSSProperties}
       >
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-background focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-ring"
+        >
+          Skip to main content
+        </a>
         <Sidebar />
-        <SidebarInset>
+        {/* SidebarInset renders the page's single <main> landmark; the skip
+            link targets it and it takes programmatic focus once. */}
+        <SidebarInset id="main-content" tabIndex={-1} className="outline-none">
           <div className="print:hidden">
             <Header />
           </div>
 
-          <main
+          <div
               className={cn(
                   "@container/main",
                   "container",
@@ -52,7 +60,7 @@ export function Layout({ children }: PropsWithChildren) {
             <div key={pathname} className="animate-page min-w-0">
               {children}
             </div>
-          </main>
+          </div>
 
         </SidebarInset>
       </SidebarProvider>

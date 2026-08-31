@@ -153,9 +153,10 @@ function ClassRowActions({
                     recordItemId={classId}
                     size="icon"
                     variant="ghost"
+                    aria-label="Delete class"
                     className="h-8 w-8 text-muted-foreground hover:text-destructive"
                 >
-                    <Trash2 className="h-4 w-4" />
+                    <Trash2 className="h-4 w-4" aria-hidden="true" />
                 </DeleteButton>
             )}
         </div>

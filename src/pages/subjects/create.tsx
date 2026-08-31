@@ -7,7 +7,7 @@ import { PageHeader } from "@/components/layout/page-header.tsx";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { Input } from "@/components/ui/input.tsx";
-import { Label } from "@/components/ui/label.tsx";
+import { Field } from "@/components/ui/field.tsx";
 import { Textarea } from "@/components/ui/textarea.tsx";
 import { Separator } from "@/components/ui/separator.tsx";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select.tsx";
@@ -54,16 +54,15 @@ const SubjectsCreate = () => {
                 <Separator />
                 <CardContent className="mt-6">
                     <form onSubmit={handleSubmit} className="space-y-4">
-                        <div className="space-y-2"><Label>Name *</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Mathematics" /></div>
-                        <div className="space-y-2"><Label>Code *</Label><Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="MATH101" /></div>
-                        <div className="space-y-2">
-                            <Label>Department *</Label>
+                        <Field label="Name" required><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Mathematics" /></Field>
+                        <Field label="Code" required><Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="MATH101" /></Field>
+                        <Field label="Department" required htmlFor="subject-department">
                             <Select value={departmentId} onValueChange={setDepartmentId}>
-                                <SelectTrigger className="w-full"><SelectValue placeholder="Select department" /></SelectTrigger>
+                                <SelectTrigger id="subject-department" className="w-full"><SelectValue placeholder="Select department" /></SelectTrigger>
                                 <SelectContent>{departments.map((d) => <SelectItem key={d.id} value={String(d.id)}>{d.name}</SelectItem>)}</SelectContent>
                             </Select>
-                        </div>
-                        <div className="space-y-2"><Label>Description</Label><Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} /></div>
+                        </Field>
+                        <Field label="Description"><Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} /></Field>
                         <Separator />
                         <Button type="submit" className="w-full" disabled={submitting}>
                             {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Create Subject

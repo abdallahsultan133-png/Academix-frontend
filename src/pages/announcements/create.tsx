@@ -8,7 +8,7 @@ import { PageHeader } from "@/components/layout/page-header.tsx";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { Input } from "@/components/ui/input.tsx";
-import { Label } from "@/components/ui/label.tsx";
+import { Field } from "@/components/ui/field.tsx";
 import { Textarea } from "@/components/ui/textarea.tsx";
 import { Separator } from "@/components/ui/separator.tsx";
 import { Switch } from "@/components/ui/switch.tsx";
@@ -78,10 +78,9 @@ const AnnouncementsCreate = () => {
         <Separator />
         <CardContent className="mt-6">
           <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="space-y-2">
-              <Label>Audience</Label>
+            <Field label="Audience" htmlFor="announcement-audience">
               <Select value={classId} onValueChange={setClassId}>
-                <SelectTrigger className="w-full">
+                <SelectTrigger id="announcement-audience" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -91,24 +90,22 @@ const AnnouncementsCreate = () => {
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+            </Field>
 
-            <div className="space-y-2">
-              <Label>Title <span className="text-orange-600">*</span></Label>
+            <Field label="Title" required>
               <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Midterm schedule released" />
-            </div>
+            </Field>
 
-            <div className="space-y-2">
-              <Label>Content <span className="text-orange-600">*</span></Label>
+            <Field label="Content" required>
               <Textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder="Write your announcement..." rows={6} />
-            </div>
+            </Field>
 
             <div className="flex items-center justify-between rounded-md border p-3">
               <div>
-                <p className="text-sm font-medium">Pin to top</p>
+                <p id="pin-to-top-label" className="text-sm font-medium">Pin to top</p>
                 <p className="text-xs text-muted-foreground">Pinned announcements always appear first.</p>
               </div>
-              <Switch checked={pinned} onCheckedChange={setPinned} />
+              <Switch checked={pinned} onCheckedChange={setPinned} aria-labelledby="pin-to-top-label" />
             </div>
 
             <Separator />

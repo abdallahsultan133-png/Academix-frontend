@@ -135,18 +135,20 @@ export function NotificationsBell() {
                                 >
                                     <div className={cn("mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
                                         n.read ? "bg-muted" : "bg-blue-100 dark:bg-blue-900/50")}>
-                                        <Icon className={cn("h-4 w-4", n.read ? "text-muted-foreground" : "text-blue-600 dark:text-blue-400")} />
+                                        <Icon aria-hidden="true" className={cn("h-4 w-4", n.read ? "text-muted-foreground" : "text-blue-600 dark:text-blue-400")} />
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-start justify-between gap-1">
                                             <p className={cn("text-sm leading-snug", !n.read && "font-medium")}>{n.title}</p>
                                             {!n.read && (
                                                 <button
+                                                    type="button"
                                                     onClick={(e) => { e.stopPropagation(); e.preventDefault(); markRead(n.id); }}
                                                     className="shrink-0 text-muted-foreground hover:text-primary"
+                                                    aria-label={`Mark "${n.title}" as read`}
                                                     title="Mark as read"
                                                 >
-                                                    <Check className="h-3 w-3" />
+                                                    <Check className="h-3 w-3" aria-hidden="true" />
                                                 </button>
                                             )}
                                         </div>
