@@ -1,12 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Eye, EyeOff, GraduationCap, Loader2 } from "lucide-react";
+import { Eye, EyeOff, GraduationCap, Loader2, LogIn, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { cn } from "@/lib/utils";
 import { useLink, useNotification, useRegister } from "@refinedev/core";
 import { GoogleSignInButton } from "./google-sign-in-button";
 
@@ -36,7 +35,7 @@ export const SignUpForm = () => {
     <div className="flex min-h-screen">
       {/* Left branding panel */}
       <div className="hidden lg:flex lg:w-1/2 flex-col justify-between bg-primary p-12 text-primary-foreground">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-foreground/15 ring-1 ring-primary-foreground/20 backdrop-blur-sm">
             <GraduationCap className="h-5 w-5" />
           </div>
@@ -48,7 +47,7 @@ export const SignUpForm = () => {
             Your classroom,<br />organised at last.
           </h1>
           <p className="text-primary-foreground/70 text-lg leading-relaxed">
-            Join thousands of teachers and students using Academix to run better, smarter classrooms.
+            Join now meet teachers and students using Academix to run better, smarter classrooms.
           </p>
           <ul className="space-y-3">
             {[
@@ -165,7 +164,7 @@ export const SignUpForm = () => {
             </div>
 
             <Button type="submit" className="w-full h-11 text-base" disabled={loading}>
-              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
               {loading ? "Creating account..." : "Create account"}
             </Button>
           </form>
@@ -177,11 +176,12 @@ export const SignUpForm = () => {
             </span>
           </div>
 
-          <p className="text-center text-sm">
-            <Link to="/login" className={cn("font-semibold text-primary underline-offset-4 hover:underline")}>
+          <Button asChild variant="outline" className="h-11 w-full text-base">
+            <Link to="/login">
+              <LogIn className="h-4 w-4" />
               Sign in instead
             </Link>
-          </p>
+          </Button>
         </div>
       </div>
     </div>
