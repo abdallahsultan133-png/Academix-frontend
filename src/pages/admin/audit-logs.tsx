@@ -2,10 +2,12 @@ import { useEffect, useState } from "react";
 import { useGetIdentity } from "@refinedev/core";
 import { useNavigate } from "react-router";
 import { Shield } from "lucide-react";
-import { Breadcrumb } from "@/components/layout/breadcrumb.tsx";
+import { PageHeader } from "@/components/layout/page-header.tsx";
 import { Card } from "@/components/ui/card.tsx";
 import { Badge } from "@/components/ui/badge.tsx";
 import { Skeleton } from "@/components/ui/skeleton.tsx";
+import { EmptyState } from "@/components/ui/empty-state.tsx";
+import { ErrorState } from "@/components/ui/error-state.tsx";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table.tsx";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select.tsx";
 import { useApiQuery } from "@/hooks/use-api-query.ts";
@@ -22,11 +24,11 @@ type AuditLog = {
 };
 
 const actionColor = (action: string) => {
-    if (action.includes("create")) return "bg-emerald-100 text-emerald-700";
-    if (action.includes("delete")) return "bg-red-100 text-red-700";
-    if (action.includes("update") || action.includes("grade")) return "bg-blue-100 text-blue-700";
-    if (action.includes("enroll")) return "bg-purple-100 text-purple-700";
-    return "bg-gray-100 text-gray-700";
+    if (action.includes("create")) return "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300";
+    if (action.includes("delete")) return "bg-red-500/10 text-red-700 dark:text-red-300";
+    if (action.includes("update") || action.includes("grade")) return "bg-blue-500/10 text-blue-700 dark:text-blue-300";
+    if (action.includes("enroll")) return "bg-violet-500/10 text-violet-700 dark:text-violet-300";
+    return "bg-muted text-muted-foreground";
 };
 
 const AuditLogsPage = () => {
@@ -38,47 +40,47 @@ const AuditLogsPage = () => {
         if (identity && identity.role !== UserRole.ADMIN && identity.role !== UserRole.SUPER_ADMIN) {
             navigate("/unauthorized");
         }
-    }, [identity]);
+    }, [identity, navigate]);
 
-    const { data, isLoading: loading } = useApiQuery<{ data: AuditLog[] }>(`/audit-logs?limit=${limit}`);
+    const { data, isLoading: loading, isError, refetch } = useApiQuery<{ data: AuditLog[] }>(`/audit-logs?limit=${limit}`);
     const logs = data?.data ?? [];
 
     return (
         <div className="audit-logs space-y-6">
-            <Breadcrumb />
+            <PageHeader
+                breadcrumb
+                title={
+                    <span className="flex items-center gap-2">
+                        <Shield className="h-5 w-5 text-muted-foreground" />
+                        Audit Logs
+                    </span>
+                }
+                description="System activity log. Admin only."
+                actions={
+                    <Select value={limit} onValueChange={setLimit}>
+                        <SelectTrigger className="w-36">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="25">Last 25</SelectItem>
+                            <SelectItem value="50">Last 50</SelectItem>
+                            <SelectItem value="100">Last 100</SelectItem>
+                            <SelectItem value="200">Last 200</SelectItem>
+                        </SelectContent>
+                    </Select>
+                }
+            />
 
-            <div className="flex flex-wrap items-end justify-between gap-4">
-                <div className="flex items-center gap-2">
-                    <Shield className="h-5 w-5 text-muted-foreground" />
-                    <div>
-                        <h1 className="text-2xl font-semibold tracking-tight">Audit Logs</h1>
-                        <p className="text-sm text-muted-foreground">System activity log. Admin only.</p>
-                    </div>
-                </div>
-                <Select value={limit} onValueChange={setLimit}>
-                    <SelectTrigger className="w-36">
-                        <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="25">Last 25</SelectItem>
-                        <SelectItem value="50">Last 50</SelectItem>
-                        <SelectItem value="100">Last 100</SelectItem>
-                        <SelectItem value="200">Last 200</SelectItem>
-                    </SelectContent>
-                </Select>
-            </div>
-
-            <Card>
-                {loading ? (
-                    <div className="space-y-3 p-4">
-                        {Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
-                    </div>
-                ) : logs.length === 0 ? (
-                    <div className="p-10 text-center text-sm text-muted-foreground">
-                        <Shield className="mx-auto mb-2 h-6 w-6" />
-                        No audit logs yet.
-                    </div>
-                ) : (
+            {loading ? (
+                <Card className="space-y-3 p-4">
+                    {Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
+                </Card>
+            ) : isError ? (
+                <ErrorState description="Couldn't load the audit log." onRetry={refetch} />
+            ) : logs.length === 0 ? (
+                <EmptyState icon={Shield} title="No audit logs yet" description="Administrative actions across the school will be recorded here." />
+            ) : (
+                <Card className="overflow-x-auto">
                     <Table>
                         <TableHeader>
                             <TableRow>
@@ -115,8 +117,8 @@ const AuditLogsPage = () => {
                             ))}
                         </TableBody>
                     </Table>
-                )}
-            </Card>
+                </Card>
+            )}
         </div>
     );
 };

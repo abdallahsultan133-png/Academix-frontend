@@ -3,16 +3,8 @@
 @custom-variant dark (&:is(.dark *));
 
 @layer components {
-  .page-title {
-    @apply font-display text-3xl font-bold text-foreground tracking-tight;
-  }
-
   .column-title {
     @apply flex items-center gap-1 font-bold;
-  }
-
-  .actions-row {
-    @apply flex flex-col gap-3 sm:flex-row sm:gap-2 w-full sm:w-auto;
   }
 
   .sign-up {
@@ -99,10 +91,6 @@
     }
   }
 
-  .intro-row {
-    @apply flex flex-col gap-5 lg:flex-row justify-between space-y-4;
-  }
-
   .class-view {
     @apply container mx-auto pb-8 px-2 sm:px-4;
   }
@@ -147,147 +135,6 @@
     }
   }
 
-  .class-show {
-    .state-message {
-      @apply mt-6 text-sm text-muted-foreground;
-    }
-
-    .state-message.is-error {
-      @apply text-destructive;
-    }
-
-    .banner {
-      @apply mt-5 mb-1;
-
-      img {
-        @apply w-full aspect-5/1 rounded-xl object-cover shadow-md;
-      }
-
-      .placeholder {
-        @apply h-72 w-full bg-slate-200;
-      }
-    }
-
-    .details-card {
-      @apply p-6 sm:p-8 space-y-3 shadow-md;
-    }
-
-    .details-header {
-      @apply flex flex-col sm:flex-row sm:items-start justify-between gap-5 mb-4;
-
-      > div:first-child {
-        @apply flex-1 space-y-2;
-
-        h1 {
-          @apply text-xl sm:text-2xl font-bold;
-        }
-
-        p {
-          @apply text-sm text-muted-foreground;
-        }
-      }
-
-      > div:last-child {
-        @apply space-x-2;
-
-        > * {
-          @apply px-3 py-1;
-        }
-
-        [data-status="active"] {
-          @apply bg-green-600 text-white;
-        }
-
-        [data-status="inactive"] {
-          @apply bg-gray-600 text-white;
-        }
-      }
-    }
-
-    .details-grid {
-      @apply grid sm:grid-cols-2 mt-8 gap-10 text-sm;
-    }
-
-    .instructor {
-      @apply space-y-2;
-
-      > p {
-        @apply text-xs mb-3 font-bold text-gray-400 uppercase tracking-wider;
-      }
-
-      > div {
-        @apply space-y-2 flex items-center gap-2;
-      }
-
-      img {
-        @apply size-13 rounded-full object-cover;
-      }
-
-      > div > div > p:first-child {
-        @apply text-base font-mono font-bold text-primary;
-      }
-
-      > div > div > p:last-child {
-        @apply text-sm font-medium mb-2;
-      }
-    }
-
-    .department {
-      @apply space-y-2;
-
-      > p {
-        @apply text-xs font-bold text-muted-foreground uppercase tracking-wider;
-      }
-
-      > div {
-        @apply space-y-2;
-
-        p:first-child {
-          @apply text-lg font-bold text-primary;
-        }
-
-        p:last-child {
-          @apply text-sm text-muted-foreground line-clamp-1;
-        }
-      }
-    }
-
-    .subject {
-      @apply space-y-2;
-
-      > p {
-        @apply text-xs font-bold text-muted-foreground uppercase tracking-wider;
-      }
-
-      > div {
-        @apply space-y-2;
-
-        span {
-          @apply font-extrabold;
-        }
-
-        p:first-of-type {
-          @apply text-lg font-bold text-primary;
-        }
-
-        p:last-of-type {
-          @apply text-sm text-muted-foreground mt-2 leading-relaxed;
-        }
-      }
-    }
-
-    .join {
-      @apply space-y-2;
-
-      h2 {
-        @apply text-xs font-bold text-muted-foreground uppercase tracking-wider;
-      }
-
-      ol {
-        @apply text-sm text-muted-foreground space-y-1.5 list-decimal list-inside mt-2;
-      }
-    }
-  }
 }
 
 :root {
@@ -323,9 +170,10 @@
     --sidebar-accent-foreground: oklch(0 0 0);
     --sidebar-border: oklch(0.9400 0 0);
     --sidebar-ring: oklch(0 0 0);
-    --font-sans: Geist, sans-serif;
+    --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+    --font-display: "Plus Jakarta Sans", "Inter", ui-sans-serif, system-ui, sans-serif;
     --font-serif: Georgia, serif;
-    --font-mono: Geist Mono, monospace;
+    --font-mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
     --radius: 0.5rem;
     --shadow-x: 0px;
     --shadow-y: 1px;
@@ -343,6 +191,18 @@
     --shadow-2xl: 0px 1px 2px 0px hsl(0 0% 0% / 0.45);
     --tracking-normal: 0em;
     --spacing: 0.25rem;
+
+    /* ── Data-viz palette (validated with the dataviz skill's checks) ──────
+       Charts are where colour lives — the rest of the app stays monochrome.
+       Categorical order is fixed (blue → orange → aqua); status is the
+       traffic-light triple and never re-themed; the grade chart is one hue. */
+    --viz-cat-1: #2a78d6;   /* categorical slot 1 — blue   */
+    --viz-cat-2: #eb6834;   /* categorical slot 2 — orange */
+    --viz-cat-3: #1baf7a;   /* categorical slot 3 — aqua   */
+    --viz-good: #0ca30c;    /* status — present / on-track  */
+    --viz-warning: #fab219; /* status — late / at-risk      */
+    --viz-critical: #d03b3b;/* status — absent / failing    */
+    --viz-primary: #2a78d6; /* single-hue series (grade distribution) */
 }
 
 .dark {
@@ -378,9 +238,20 @@
     --sidebar-accent-foreground: oklch(1 0 0);
     --sidebar-border: oklch(0.3200 0 0);
     --sidebar-ring: oklch(0.7200 0 0);
-    --font-sans: Geist, sans-serif;
+
+    /* Data-viz — steps re-picked for the dark surface (status stays fixed). */
+    --viz-cat-1: #3987e5;
+    --viz-cat-2: #d95926;
+    --viz-cat-3: #199e70;
+    --viz-good: #0ca30c;
+    --viz-warning: #fab219;
+    --viz-critical: #d03b3b;
+    --viz-primary: #3987e5;
+
+    --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+    --font-display: "Plus Jakarta Sans", "Inter", ui-sans-serif, system-ui, sans-serif;
     --font-serif: Georgia, serif;
-    --font-mono: Geist Mono, monospace;
+    --font-mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
     --radius: 0.5rem;
     --shadow-x: 0px;
     --shadow-y: 1px;
@@ -433,7 +304,7 @@
     --color-sidebar-ring: var(--sidebar-ring);
 
     --font-sans: var(--font-sans);
-    --font-display: var(--font-sans);
+    --font-display: var(--font-display);
     --font-mono: var(--font-mono);
     --font-serif: var(--font-serif);
 
@@ -468,55 +339,21 @@
   to   { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-
-@keyframes slideInLeft {
-  from { opacity: 0; transform: translateX(-16px); }
-  to   { opacity: 1; transform: translateX(0); }
-}
-
-/* Pages fade in on mount */
-.class-view,
-.attendance-mark,
-.attendance-report,
-.assignments-list,
-.assignments-create,
-.assignment-show,
-.announcements-list,
-.announcements-create,
-.gradebook,
-.exams-page,
-.report-card,
-.calendar-page,
-.messages-page,
-.audit-logs,
-.enroll-students,
-.student-profile,
-.parent-dashboard,
-.profile-page,
-.users-list {
+/* Route content fades in on every navigation (Layout re-keys this element on
+   the pathname). */
+.animate-page {
   animation: fadeInUp 0.25s ease-out both;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .animate-page {
+    animation: none;
+  }
+}
+
 /* Cards hover lift */
-.class-view .details-card,
 [class*="-card"] {
   transition: box-shadow 0.2s ease, transform 0.2s ease;
-}
-
-/* Stat cards subtle pulse on load */
-@keyframes statPulse {
-  0%   { opacity: 0; transform: scale(0.97); }
-  100% { opacity: 1; transform: scale(1); }
-}
-
-/* Sidebar nav items slide in */
-@keyframes navSlideIn {
-  from { opacity: 0; transform: translateX(-8px); }
-  to   { opacity: 1; transform: translateX(0); }
 }
 
 /* Notification bell badge pop */
@@ -533,21 +370,10 @@
 
 /* ─── MOBILE RESPONSIVE POLISH ────────────────────────────────────────────── */
 
-/* Ensure tables scroll horizontally on small screens */
 @media (max-width: 768px) {
-  .class-view .details-grid {
-    grid-template-columns: 1fr;
-  }
-
   /* Stack the messages layout on mobile */
   .messages-page > div:last-child {
     grid-template-columns: 1fr;
-  }
-
-  /* Wrap action buttons */
-  .class-show .class-info-header {
-    flex-direction: column;
-    align-items: flex-start;
   }
 
   /* Calendar grid readable on small screens */
@@ -577,119 +403,14 @@
   border-radius: var(--radius);
 }
 
-/* Smooth color transitions for dark/light mode */
-*, *::before, *::after {
-  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.05s ease;
-}
-
-/* ─── CLASS SHOW PAGE CSS ─────────────────────────────────────────────────── */
-
-.class-show .banner img,
-.class-show .banner .cl-img {
-  width: 100%;
-  height: 200px;
-  object-fit: cover;
-  border-radius: var(--radius-lg);
-  margin-bottom: 1.5rem;
-}
-
-.class-show .details-card {
-  padding: 1.5rem;
-  border-radius: var(--radius-lg);
-  background: var(--card);
-  border: 1px solid var(--border);
-  margin-bottom: 1.5rem;
-}
-
-.class-show .details-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-  flex-wrap: wrap;
-  margin-bottom: 1rem;
-}
-
-.class-show .details-header h1 {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--foreground);
-}
-
-.class-show .details-header > div:last-child {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.class-show .details-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 1.5rem;
-  margin-top: 1.5rem;
-}
-
-.class-show .instructor,
-.class-show .department,
-.class-show .subject {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.class-show .instructor > p:first-child,
-.class-show .department > p:first-child,
-.class-show .subject > p:first-child {
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--muted-foreground);
-}
-
-.class-show .instructor div > p:first-child,
-.class-show .department div > p,
-.class-show .subject div > p:first-child {
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: var(--foreground);
-}
-
-.class-show .instructor div > p:last-child,
-.class-show .subject div > p:last-child {
-  font-size: 0.8rem;
-  color: var(--muted-foreground);
-}
-
-.class-show .join {
-  background: var(--muted);
-  border-radius: var(--radius);
-  padding: 1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.class-show .join h2 {
-  font-size: 0.875rem;
-  font-weight: 700;
-  color: var(--foreground);
-}
-
-.class-show .join ol {
-  list-style: decimal;
-  padding-left: 1.25rem;
-  font-size: 0.8rem;
-  color: var(--muted-foreground);
-  line-height: 1.75;
-}
-
-.class-show .join strong {
-  font-family: var(--font-mono);
-  font-weight: 700;
-  color: var(--primary);
-  background: var(--accent);
-  padding: 0.1em 0.4em;
-  border-radius: 4px;
+/* Smooth colour cross-fade on a light/dark toggle only. The `.theme-transition`
+   class is added to <html> for ~250ms by the ThemeProvider when the theme
+   changes, so these transitions are NOT live during normal scrolling, resizing,
+   or hover — only while the palette is actually swapping. */
+.theme-transition,
+.theme-transition *,
+.theme-transition *::before,
+.theme-transition *::after {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease,
+    fill 0.2s ease, stroke 0.2s ease !important;
 }

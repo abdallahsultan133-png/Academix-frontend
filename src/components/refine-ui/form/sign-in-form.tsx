@@ -35,7 +35,7 @@ export const SignInForm = () => {
           <span className="font-display text-2xl font-extrabold tracking-tight">Academix</span>
         </div>
 
-        <div className="space-y-6">
+        <div className="space-y-10">
           <h1 className="font-display text-4xl font-bold leading-tight">
             Manage your classroom<br />with confidence.
           </h1>
@@ -104,7 +104,15 @@ export const SignInForm = () => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password">Password</Label>
+                <Link
+                  to="/forgot-password"
+                  className="text-xs font-medium text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+                >
+                  Forgot password?
+                </Link>
+              </div>
               <div className="relative">
                 <Input
                   id="password"

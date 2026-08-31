@@ -1,28 +1,33 @@
 import { useEffect, useState, useCallback } from "react";
-import { useParams } from "react-router";
+import { useNavigate, useParams } from "react-router";
 import { useGetIdentity } from "@refinedev/core";
 import { toast } from "sonner";
-import { CalendarClock, CheckCircle2, File as FileIcon, Loader2, Sparkles } from "lucide-react";
+import { CheckCircle2, File as FileIcon, Loader2, Trash2 } from "lucide-react";
 
 import { Breadcrumb } from "@/components/layout/breadcrumb.tsx";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { Badge } from "@/components/ui/badge.tsx";
-import { Textarea } from "@/components/ui/textarea.tsx";
-import { Input } from "@/components/ui/input.tsx";
-import { Separator } from "@/components/ui/separator.tsx";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar.tsx";
-import { Skeleton } from "@/components/ui/skeleton.tsx";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog.tsx";
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog.tsx";
+import { Textarea } from "@/components/ui/textarea.tsx";
+import { Separator } from "@/components/ui/separator.tsx";
+import { Skeleton } from "@/components/ui/skeleton.tsx";
+import { StatusBadge } from "@/components/ui/status-badge.tsx";
 import FileUploadWidget, { type FileUploadValue } from "@/components/file-upload-widget.tsx";
+import { DeadlineCountdown } from "@/components/deadline-countdown.tsx";
 import { BACKEND_BASE_URL } from "@/constants";
 import type { User } from "@/types";
+import { GradingPane } from "./grading-pane.tsx";
 
 type Submission = {
   id: number;
@@ -40,19 +45,6 @@ type Submission = {
   student?: { id: string; name: string; email: string; image: string | null };
 };
 
-const aiScoreBadge = (score: number, summary: string | null) => {
-  const tone = score >= 70
-    ? "bg-red-100 text-red-700"
-    : score >= 30
-      ? "bg-amber-100 text-amber-700"
-      : "bg-emerald-100 text-emerald-700";
-  return (
-    <span title={summary ?? undefined} className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${tone}`}>
-      <Sparkles className="h-3 w-3" /> {score}% likely AI-written
-    </span>
-  );
-};
-
 type AssignmentDetail = {
   id: number;
   title: string;
@@ -66,33 +58,29 @@ type AssignmentDetail = {
   mySubmission: Submission | null;
 };
 
-const getInitials = (name = "") => name.trim().split(" ").filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join("");
-
 const statusBadge = (status: Submission["status"]) => {
   const map = {
-    submitted: { label: "Submitted", className: "bg-blue-100 text-blue-700" },
-    late: { label: "Submitted late", className: "bg-amber-100 text-amber-700" },
-    graded: { label: "Graded", className: "bg-emerald-100 text-emerald-700" },
+    submitted: { label: "Submitted", tone: "info" },
+    late: { label: "Submitted late", tone: "warning" },
+    graded: { label: "Graded", tone: "success" },
   } as const;
-  const { label, className } = map[status];
-  return <Badge className={className}>{label}</Badge>;
+  const { label, tone } = map[status];
+  return <StatusBadge tone={tone}>{label}</StatusBadge>;
 };
 
 const AssignmentShow = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { data: identity } = useGetIdentity<User>();
   const isTeacherOrAdmin = identity?.role === "teacher" || identity?.role === "admin" || identity?.role === "super_admin";
 
   const [assignment, setAssignment] = useState<AssignmentDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(false);
 
   const [content, setContent] = useState("");
   const [file, setFile] = useState<FileUploadValue | null>(null);
   const [submitting, setSubmitting] = useState(false);
-
-  const [submissions, setSubmissions] = useState<Submission[] | null>(null);
-  const [gradeDrafts, setGradeDrafts] = useState<Record<number, { score: string; feedback: string }>>({});
-  const [savingGradeFor, setSavingGradeFor] = useState<number | null>(null);
 
   const loadAssignment = useCallback(() => {
     setLoading(true);
@@ -115,24 +103,6 @@ const AssignmentShow = () => {
   }, [id]);
 
   useEffect(() => { loadAssignment(); }, [loadAssignment]);
-
-  useEffect(() => {
-    if (!isTeacherOrAdmin || !id) return;
-    fetch(`${BACKEND_BASE_URL}/assignments/${id}/submissions`, { credentials: "include" })
-      .then(async (res) => {
-        if (!res.ok) throw new Error((await res.json())?.message ?? "Failed to load submissions");
-        return res.json();
-      })
-      .then((json: { data: Submission[] }) => {
-        setSubmissions(json.data);
-        const drafts: Record<number, { score: string; feedback: string }> = {};
-        json.data.forEach((s) => {
-          drafts[s.id] = { score: s.score?.toString() ?? "", feedback: s.feedback ?? "" };
-        });
-        setGradeDrafts(drafts);
-      })
-      .catch((e) => toast.error(e.message ?? "Failed to load submissions"));
-  }, [isTeacherOrAdmin, id]);
 
   const handleSubmit = async () => {
     if (!content.trim() && !file) return toast.error("Add some text or attach a file before submitting.");
@@ -161,27 +131,19 @@ const AssignmentShow = () => {
     }
   };
 
-  const handleGrade = async (submissionId: number) => {
-    const draft = gradeDrafts[submissionId];
-    if (!draft?.score.trim()) return toast.error("Enter a score first.");
-
-    setSavingGradeFor(submissionId);
+  const handleDeleteAssignment = async () => {
+    setDeleting(true);
     try {
-      const res = await fetch(`${BACKEND_BASE_URL}/assignments/submissions/${submissionId}/grade`, {
-        method: "PUT",
+      const res = await fetch(`${BACKEND_BASE_URL}/assignments/${id}`, {
+        method: "DELETE",
         credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ score: Number(draft.score), feedback: draft.feedback || undefined }),
       });
-      if (!res.ok) throw new Error((await res.json())?.message ?? "Failed to save grade");
-
-      const { data } = await res.json();
-      setSubmissions((prev) => prev?.map((s) => (s.id === submissionId ? { ...s, ...data } : s)) ?? prev);
-      toast.success("Grade saved.");
+      if (!res.ok) throw new Error((await res.json())?.message ?? "Failed to delete assignment");
+      toast.success("Assignment deleted.");
+      navigate("/assignments");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to save grade");
-    } finally {
-      setSavingGradeFor(null);
+      toast.error(e instanceof Error ? e.message : "Failed to delete assignment");
+      setDeleting(false);
     }
   };
 
@@ -217,17 +179,49 @@ const AssignmentShow = () => {
               <CardTitle className="text-2xl">{assignment.title}</CardTitle>
               <p className="mt-1 text-sm text-muted-foreground">{assignment.class.name} · by {assignment.creator.name}</p>
             </div>
-            <Badge variant="outline">{assignment.maxScore} pts</Badge>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline">{assignment.maxScore} pts</Badge>
+              {isTeacherOrAdmin && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    >
+                      <Trash2 className="mr-1.5 h-4 w-4" /> Delete
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete this assignment?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        &ldquo;{assignment.title}&rdquo; and all of its submissions
+                        will be permanently removed. This can&rsquo;t be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={handleDeleteAssignment}
+                        disabled={deleting}
+                        className="bg-destructive text-white hover:bg-destructive/90"
+                      >
+                        {deleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Delete assignment
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
+            </div>
           </div>
         </CardHeader>
         <Separator />
         <CardContent className="mt-4 space-y-4">
           {assignment.description && <p className="whitespace-pre-wrap text-sm">{assignment.description}</p>}
 
-          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-            <CalendarClock className="h-4 w-4" />
-            {assignment.dueAt ? `Due ${new Date(assignment.dueAt).toLocaleString()}` : "No due date set"}
-          </div>
+          <DeadlineCountdown dueAt={assignment.dueAt} variant="panel" />
 
           {assignment.attachmentUrl && (
             <a
@@ -254,13 +248,13 @@ const AssignmentShow = () => {
           <Separator />
           <CardContent className="mt-4 space-y-4">
             {assignment.mySubmission?.status === "graded" && (
-              <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm">
-                <div className="flex items-center gap-1.5 font-medium text-emerald-700">
+              <div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-700 dark:text-emerald-300">
+                <div className="flex items-center gap-1.5 font-medium">
                   <CheckCircle2 className="h-4 w-4" />
                   Score: {assignment.mySubmission.score} / {assignment.maxScore}
                 </div>
                 {assignment.mySubmission.feedback && (
-                  <p className="mt-1 text-emerald-700">{assignment.mySubmission.feedback}</p>
+                  <p className="mt-1">{assignment.mySubmission.feedback}</p>
                 )}
               </div>
             )}
@@ -285,7 +279,7 @@ const AssignmentShow = () => {
                 )}
               </div>
             ) : deadlinePassed ? (
-              <p className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+              <p className="rounded-md border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-700 dark:text-red-300">
                 The deadline for this assignment has passed. You can no longer submit.
               </p>
             ) : (
@@ -310,80 +304,10 @@ const AssignmentShow = () => {
       )}
 
       {isTeacherOrAdmin && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Submissions {submissions ? `(${submissions.length})` : ""}</CardTitle>
-          </CardHeader>
-          <Separator />
-          <CardContent className="mt-4 divide-y p-0">
-            {!submissions ? (
-              <div className="space-y-3 p-4">
-                {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}
-              </div>
-            ) : submissions.length === 0 ? (
-              <p className="p-4 text-sm text-muted-foreground">No submissions yet.</p>
-            ) : (
-              submissions.map((s) => (
-                <div key={s.id} className="flex flex-wrap items-center gap-4 py-4">
-                  <Avatar className="h-9 w-9">
-                    {s.student?.image && <AvatarImage src={s.student.image} />}
-                    <AvatarFallback>{getInitials(s.student?.name)}</AvatarFallback>
-                  </Avatar>
-
-                  <div className="min-w-[160px] flex-1">
-                    <p className="text-sm font-medium">{s.student?.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      Submitted {new Date(s.submittedAt).toLocaleString()}
-                    </p>
-                    {s.fileUrl && (
-                      <a href={s.fileUrl} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
-                        <FileIcon className="h-3 w-3" /> {s.fileName ?? "Attachment"}
-                      </a>
-                    )}
-                    {s.content && (
-                      <Dialog>
-                        <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{s.content}</p>
-                        <DialogTrigger asChild>
-                          <button type="button" className="mt-0.5 text-xs font-medium text-primary hover:underline">
-                            Read full submission
-                          </button>
-                        </DialogTrigger>
-                        <DialogContent className="max-h-[80vh] max-w-2xl overflow-y-auto">
-                          <DialogHeader>
-                            <DialogTitle>{s.student?.name}'s submission</DialogTitle>
-                          </DialogHeader>
-                          <p className="whitespace-pre-wrap text-sm">{s.content}</p>
-                        </DialogContent>
-                      </Dialog>
-                    )}
-                    {s.aiScore !== null && <div className="mt-1.5">{aiScoreBadge(s.aiScore, s.aiSummary)}</div>}
-                  </div>
-
-                  {statusBadge(s.status)}
-
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="number"
-                      className="w-20"
-                      placeholder="Score"
-                      value={gradeDrafts[s.id]?.score ?? ""}
-                      onChange={(e) => setGradeDrafts((prev) => ({ ...prev, [s.id]: { ...prev[s.id], score: e.target.value, feedback: prev[s.id]?.feedback ?? "" } }))}
-                    />
-                    <Input
-                      className="w-40"
-                      placeholder="Feedback (optional)"
-                      value={gradeDrafts[s.id]?.feedback ?? ""}
-                      onChange={(e) => setGradeDrafts((prev) => ({ ...prev, [s.id]: { ...prev[s.id], feedback: e.target.value, score: prev[s.id]?.score ?? "" } }))}
-                    />
-                    <Button size="sm" onClick={() => handleGrade(s.id)} disabled={savingGradeFor === s.id}>
-                      {savingGradeFor === s.id ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
-                    </Button>
-                  </div>
-                </div>
-              ))
-            )}
-          </CardContent>
-        </Card>
+        <section className="space-y-3">
+          <h2 className="text-lg font-semibold">Submissions &amp; grading</h2>
+          <GradingPane assignmentId={assignment.id} maxScore={assignment.maxScore} />
+        </section>
       )}
     </div>
   );

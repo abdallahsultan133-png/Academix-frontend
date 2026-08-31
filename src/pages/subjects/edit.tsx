@@ -3,7 +3,7 @@ import { Navigate, useNavigate, useParams } from "react-router";
 import { useGetIdentity, useList, useOne } from "@refinedev/core";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
-import { Breadcrumb } from "@/components/layout/breadcrumb.tsx";
+import { PageHeader } from "@/components/layout/page-header.tsx";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { Input } from "@/components/ui/input.tsx";
@@ -79,8 +79,7 @@ const SubjectsEdit = () => {
 
     return (
         <div className="space-y-6 max-w-xl">
-            <Breadcrumb />
-            <div><h1 className="text-2xl font-semibold tracking-tight">Edit Subject</h1><p className="text-sm text-muted-foreground">Update this subject's details.</p></div>
+            <PageHeader breadcrumb title="Edit Subject" description="Update this subject's details." />
             <Card>
                 <CardHeader><CardTitle>Subject details</CardTitle></CardHeader>
                 <Separator />

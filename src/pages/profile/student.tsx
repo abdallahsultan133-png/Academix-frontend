@@ -7,6 +7,7 @@ import { useGetIdentity } from "@refinedev/core";
 
 import { Breadcrumb } from "@/components/layout/breadcrumb.tsx";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card.tsx";
+import { ErrorState } from "@/components/ui/error-state.tsx";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar.tsx";
 import { Badge } from "@/components/ui/badge.tsx";
 import { Button } from "@/components/ui/button.tsx";
@@ -55,7 +56,7 @@ const StudentProfilePage = () => {
     const [linking, setLinking] = useState(false);
 
     const studentPath = id ? `/profile/student/${id}` : null;
-    const { data: studentData, isLoading: loading } = useApiQuery<{ data: StudentData }>(studentPath);
+    const { data: studentData, isLoading: loading, isError, refetch } = useApiQuery<{ data: StudentData }>(studentPath);
     const data = studentData?.data ?? null;
 
     const documentsPath = id ? `/files/student/${id}` : null;
@@ -114,7 +115,16 @@ const StudentProfilePage = () => {
     };
 
     if (loading) return <div className="space-y-4"><Breadcrumb />{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24 w-full" />)}</div>;
-    if (!data) return <div className="space-y-4"><Breadcrumb /><p className="text-sm text-muted-foreground">Student not found.</p></div>;
+    if (isError || !data) return (
+        <div className="space-y-4">
+            <Breadcrumb />
+            <ErrorState
+                title="Can't show this student"
+                description="They may not exist, or you don't have permission to view their profile."
+                onRetry={refetch}
+            />
+        </div>
+    );
 
     const avgGPA = data.grades.length > 0
         ? (data.grades.reduce((s, g) => s + Number(g.gpa ?? 0), 0) / data.grades.length).toFixed(2)

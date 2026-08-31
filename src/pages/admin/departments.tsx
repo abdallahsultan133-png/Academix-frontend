@@ -3,13 +3,15 @@ import { useGetIdentity } from "@refinedev/core";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import { Building2, Loader2, Pencil, Plus, Trash } from "lucide-react";
-import { Breadcrumb } from "@/components/layout/breadcrumb.tsx";
+import { PageHeader } from "@/components/layout/page-header.tsx";
 import { Card } from "@/components/ui/card.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { Input } from "@/components/ui/input.tsx";
 import { Label } from "@/components/ui/label.tsx";
 import { Textarea } from "@/components/ui/textarea.tsx";
 import { Skeleton } from "@/components/ui/skeleton.tsx";
+import { EmptyState } from "@/components/ui/empty-state.tsx";
+import { ErrorState } from "@/components/ui/error-state.tsx";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table.tsx";
 import {
     Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
@@ -19,6 +21,7 @@ import {
     AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog.tsx";
 import { BACKEND_BASE_URL } from "@/constants";
+import { useApiQuery } from "@/hooks/use-api-query.ts";
 import { UserRole, type Department, type User } from "@/types";
 
 type FormState = { name: string; code: string; description: string };
@@ -28,8 +31,6 @@ const DepartmentsPage = () => {
     const { data: identity } = useGetIdentity<User>();
     const navigate = useNavigate();
 
-    const [departments, setDepartments] = useState<Department[]>([]);
-    const [loading, setLoading] = useState(true);
     const [dialogOpen, setDialogOpen] = useState(false);
     const [editing, setEditing] = useState<Department | null>(null);
     const [form, setForm] = useState<FormState>(emptyForm);
@@ -41,19 +42,9 @@ const DepartmentsPage = () => {
         }
     }, [identity, navigate]);
 
-    const load = () => {
-        setLoading(true);
-        fetch(`${BACKEND_BASE_URL}/departments`, { credentials: "include" })
-            .then(async (r) => {
-                if (!r.ok) throw new Error((await r.json())?.error ?? "Failed");
-                return r.json() as Promise<{ data: Department[] }>;
-            })
-            .then((j) => setDepartments(j.data ?? []))
-            .catch((e) => toast.error(e.message))
-            .finally(() => setLoading(false));
-    };
-
-    useEffect(() => { load(); }, []);
+    const { data, isLoading: loading, isError, refetch } = useApiQuery<{ data: Department[] }>("/departments");
+    const departments = data?.data ?? [];
+    const load = () => { void refetch(); };
 
     const openCreate = () => { setEditing(null); setForm(emptyForm); setDialogOpen(true); };
     const openEdit = (d: Department) => {
@@ -102,17 +93,16 @@ const DepartmentsPage = () => {
 
     return (
         <div className="departments space-y-6">
-            <Breadcrumb />
-
-            <div className="flex flex-wrap items-end justify-between gap-4">
-                <div className="flex items-center gap-2">
-                    <Building2 className="h-5 w-5 text-muted-foreground" />
-                    <div>
-                        <h1 className="text-2xl font-semibold tracking-tight">Departments</h1>
-                        <p className="text-sm text-muted-foreground">Manage academic departments. Admin only.</p>
-                    </div>
-                </div>
-
+            <PageHeader
+                breadcrumb
+                title={
+                    <span className="flex items-center gap-2">
+                        <Building2 className="h-5 w-5 text-muted-foreground" />
+                        Departments
+                    </span>
+                }
+                description="Manage academic departments. Admin only."
+                actions={
                 <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                     <DialogTrigger asChild>
                         <Button onClick={openCreate}><Plus className="mr-2 h-4 w-4" />Add Department</Button>
@@ -146,19 +136,23 @@ const DepartmentsPage = () => {
                         </form>
                     </DialogContent>
                 </Dialog>
-            </div>
+                }
+            />
 
-            <Card>
-                {loading ? (
-                    <div className="space-y-3 p-4">
-                        {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
-                    </div>
-                ) : departments.length === 0 ? (
-                    <div className="p-10 text-center text-sm text-muted-foreground">
-                        <Building2 className="mx-auto mb-2 h-6 w-6" />
-                        No departments yet.
-                    </div>
-                ) : (
+            {loading ? (
+                <Card className="space-y-3 p-4">
+                    {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
+                </Card>
+            ) : isError ? (
+                <ErrorState description="Couldn't load departments." onRetry={refetch} />
+            ) : departments.length === 0 ? (
+                <EmptyState
+                    icon={Building2}
+                    title="No departments yet"
+                    description="Add a department to organise subjects and classes under it."
+                />
+            ) : (
+                <Card className="overflow-x-auto">
                     <Table>
                         <TableHeader>
                             <TableRow>
@@ -204,8 +198,8 @@ const DepartmentsPage = () => {
                             ))}
                         </TableBody>
                     </Table>
-                )}
-            </Card>
+                </Card>
+            )}
         </div>
     );
 };

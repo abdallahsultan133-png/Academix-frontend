@@ -3,7 +3,7 @@ import { useNavigate } from "react-router";
 import { useList } from "@refinedev/core";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
-import { Breadcrumb } from "@/components/layout/breadcrumb.tsx";
+import { PageHeader } from "@/components/layout/page-header.tsx";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { Input } from "@/components/ui/input.tsx";
@@ -48,8 +48,7 @@ const SubjectsCreate = () => {
 
     return (
         <div className="space-y-6 max-w-xl">
-            <Breadcrumb />
-            <div><h1 className="text-2xl font-semibold tracking-tight">New Subject</h1><p className="text-sm text-muted-foreground">Add a subject to the curriculum.</p></div>
+            <PageHeader breadcrumb title="New Subject" description="Add a subject to the curriculum." />
             <Card>
                 <CardHeader><CardTitle>Subject details</CardTitle></CardHeader>
                 <Separator />

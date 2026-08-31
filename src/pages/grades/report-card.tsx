@@ -2,8 +2,11 @@ import { useGetIdentity } from "@refinedev/core";
 import { useParams } from "react-router";
 import { GraduationCap, Loader2, Download } from "lucide-react";
 import { PDFDownloadLink } from "@react-pdf/renderer";
+import { useDownload } from "@/hooks/use-download.ts";
 
-import { Breadcrumb } from "@/components/layout/breadcrumb.tsx";
+import { PageHeader } from "@/components/layout/page-header.tsx";
+import { EmptyState } from "@/components/ui/empty-state.tsx";
+import { ErrorState } from "@/components/ui/error-state.tsx";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card.tsx";
 import { Badge } from "@/components/ui/badge.tsx";
 import { Button } from "@/components/ui/button.tsx";
@@ -35,18 +38,19 @@ type GradeRow = {
 
 const gpaBadgeColor = (letter: string | null) => {
   if (!letter) return "";
-  if (letter === "A") return "bg-emerald-100 text-emerald-700";
-  if (letter === "B") return "bg-blue-100 text-blue-700";
-  if (letter === "C") return "bg-amber-100 text-amber-700";
-  return "bg-red-100 text-red-700";
+  if (letter === "A") return "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300";
+  if (letter === "B") return "bg-blue-500/10 text-blue-700 dark:text-blue-300";
+  if (letter === "C") return "bg-amber-500/10 text-amber-700 dark:text-amber-300";
+  return "bg-red-500/10 text-red-700 dark:text-red-300";
 };
 
 const ReportCard = () => {
   const { id: routeStudentId } = useParams<{ id?: string }>();
+  const { narrateDownload } = useDownload();
   const { data: identity, isLoading: identityLoading } = useGetIdentity<User>();
   const targetStudentId = routeStudentId ?? identity?.id;
 
-  const { data, isLoading: loading } = useApiQuery<{ data: GradeRow[] }>(targetStudentId ? `/grades/student/${targetStudentId}` : null);
+  const { data, isLoading: loading, isError, refetch } = useApiQuery<{ data: GradeRow[] }>(targetStudentId ? `/grades/student/${targetStudentId}` : null);
   const grades = data?.data ?? [];
 
   // Same endpoint works whether targetStudentId is the caller's own id or
@@ -62,24 +66,24 @@ const ReportCard = () => {
     : null;
 
   const passCount = grades.filter((g) => g.letterGrade && g.letterGrade !== "F").length;
+  const pdfFileName = `report-card-${studentName.replace(/\s+/g, "-").toLowerCase()}.pdf`;
 
   if (identityLoading) return <div className="p-6"><Skeleton className="h-8 w-48" /></div>;
 
   return (
     <div className="report-card space-y-6">
-      <div className="print:hidden"><Breadcrumb /></div>
-
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <GraduationCap className="h-7 w-7 text-muted-foreground" />
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Report Card</h1>
-            <p className="text-sm text-muted-foreground">{studentName} · {studentEmail}</p>
-          </div>
-        </div>
-
-        {!loading && studentName && (
-          <div className="print:hidden">
+      <PageHeader
+        className="print:hidden"
+        breadcrumb
+        title={
+          <span className="flex items-center gap-2">
+            <GraduationCap className="h-6 w-6 text-muted-foreground" />
+            Report Card
+          </span>
+        }
+        description={studentName ? `${studentName} · ${studentEmail}` : undefined}
+        actions={
+          !loading && studentName && (
             <PDFDownloadLink
               document={
                 <ReportCardDocument
@@ -91,17 +95,28 @@ const ReportCard = () => {
                   passCount={passCount}
                 />
               }
-              fileName={`report-card-${studentName.replace(/\s+/g, "-").toLowerCase()}.pdf`}
+              fileName={pdfFileName}
             >
               {({ loading: pdfLoading }) => (
-                <Button disabled={pdfLoading}>
+                <Button
+                  size="sm"
+                  disabled={pdfLoading}
+                  onClick={() => !pdfLoading && narrateDownload(pdfFileName)}
+                >
                   {pdfLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
                   Download PDF
                 </Button>
               )}
             </PDFDownloadLink>
-          </div>
-        )}
+          )
+        }
+      />
+
+      <div className="hidden print:block">
+        <h1 className="text-xl font-bold">Report Card</h1>
+        <p className="text-sm text-muted-foreground">
+          {studentName} · {studentEmail} · Generated {new Date().toLocaleDateString()}
+        </p>
       </div>
 
       {!loading && grades.length > 0 && (
@@ -127,9 +142,21 @@ const ReportCard = () => {
         <CardContent className="p-0">
           {loading ? (
             <div className="space-y-3 p-4">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
+          ) : isError ? (
+            <div className="p-5">
+              <ErrorState
+                title="Can't load this report card"
+                description="The grades may not exist, or you don't have permission to view them."
+                onRetry={refetch}
+              />
+            </div>
           ) : grades.length === 0 ? (
-            <div className="p-10 text-center text-sm text-muted-foreground">
-              No grades recorded yet. Grades appear here once a teacher finalises them.
+            <div className="p-5">
+              <EmptyState
+                icon={GraduationCap}
+                title="No grades recorded yet"
+                description="Grades appear here once a teacher finalises them."
+              />
             </div>
           ) : (
             <Table>

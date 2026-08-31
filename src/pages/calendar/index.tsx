@@ -4,7 +4,7 @@ import { keepPreviousData, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-    ChevronLeft, ChevronRight, Plus, X,
+    ChevronLeft, ChevronRight, Plus, Minus, Loader2, Trash2,
     BookOpenCheck, CalendarDays, Flag, Clock, Repeat, Sparkles, CalendarRange,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -19,9 +19,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch.tsx";
 import { Badge } from "@/components/ui/badge.tsx";
 import { Skeleton } from "@/components/ui/skeleton.tsx";
+import { ErrorState } from "@/components/ui/error-state.tsx";
 import {
     Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog.tsx";
+import {
+    AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+    AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog.tsx";
 import { StatCard } from "@/components/dashboard/stat-card.tsx";
 import { BACKEND_BASE_URL } from "@/constants";
 import { useApiQuery } from "@/hooks/use-api-query.ts";
@@ -141,8 +146,8 @@ const gridVariants = {
 function PanelEmpty({ icon: Icon, text }: { icon: LucideIcon; text: string }) {
     return (
         <div className="flex flex-col items-center gap-3 py-14 text-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-muted">
-                <Icon className="h-6 w-6 text-muted-foreground" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-muted/60 ring-1 ring-inset ring-border/60">
+                <Icon className="h-5 w-5 text-muted-foreground/70" />
             </div>
             <p className="text-sm text-muted-foreground">{text}</p>
         </div>
@@ -151,7 +156,7 @@ function PanelEmpty({ icon: Icon, text }: { icon: LucideIcon; text: string }) {
 
 const CalendarPage = () => {
     const { data: identity } = useGetIdentity<User>();
-    const isTeacherOrAdmin = identity?.role === UserRole.TEACHER || identity?.role === UserRole.ADMIN || identity?.role === UserRole.SUPER_ADMIN;
+    const isAdmin = identity?.role === UserRole.ADMIN || identity?.role === UserRole.SUPER_ADMIN;
 
     const queryClient = useQueryClient();
     const [today] = useState(new Date());
@@ -159,6 +164,7 @@ const CalendarPage = () => {
     const [direction, setDirection] = useState(0);
     const [selectedDay, setSelectedDay] = useState<Date | null>(null);
     const [showForm, setShowForm] = useState(false);
+    const [deletingId, setDeletingId] = useState<number | null>(null);
     const [visibleTypes, setVisibleTypes] = useState<Set<CalendarEventType>>(new Set(EVENT_TYPES));
 
     // Form state
@@ -187,7 +193,7 @@ const CalendarPage = () => {
     const isCurrentMonth = month === today.getMonth() && year === today.getFullYear();
 
     const calendarPath = `/calendar?from=${isoDate(gridStart)}&to=${isoDate(gridEnd)}`;
-    const { data, isFetching, isLoading } = useApiQuery<{ data: CalendarEvent[] }>(calendarPath, {
+    const { data, isFetching, isLoading, isError, refetch } = useApiQuery<{ data: CalendarEvent[] }>(calendarPath, {
         placeholderData: keepPreviousData,
     });
     const allEvents = data?.data ?? [];
@@ -274,14 +280,16 @@ const CalendarPage = () => {
     };
 
     const handleDelete = async (eventId: number) => {
+        setDeletingId(eventId);
         try {
             const res = await fetch(`${BACKEND_BASE_URL}/calendar/${eventId}`, { method: "DELETE", credentials: "include" });
             if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.error ?? "Failed to delete event");
             queryClient.invalidateQueries({ queryKey: [calendarPath] });
-            setSelectedDay(null);
             toast.success("Event deleted.");
         } catch (err) {
             toast.error(describeError(err, "Failed to delete event"));
+        } finally {
+            setDeletingId(null);
         }
     };
 
@@ -299,7 +307,7 @@ const CalendarPage = () => {
                 className="flex flex-wrap items-end justify-between gap-4"
             >
                 <div className="flex items-center gap-3">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-indigo-500 text-white shadow-sm">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-indigo-500 text-white shadow-sm ring-1 ring-inset ring-white/15">
                         <CalendarRange className="h-5 w-5" />
                     </div>
                     <div>
@@ -307,10 +315,10 @@ const CalendarPage = () => {
                         <p className="text-sm text-muted-foreground">Classes, exams, deadlines, and school events.</p>
                     </div>
                 </div>
-                {isTeacherOrAdmin && (
+                {isAdmin && (
                     <Dialog open={showForm} onOpenChange={setShowForm}>
                         <DialogTrigger asChild>
-                            <Button className="bg-gradient-to-r from-violet-500 to-indigo-500 text-white shadow-sm hover:opacity-90">
+                            <Button className="bg-violet-600 text-white shadow-sm hover:bg-violet-600/90">
                                 <Plus className="mr-1.5 h-4 w-4" />Add Event
                             </Button>
                         </DialogTrigger>
@@ -380,8 +388,9 @@ const CalendarPage = () => {
                                     </div>
                                 </div>
                                 <DialogFooter>
-                                    <Button type="submit" className="w-full bg-gradient-to-r from-violet-500 to-indigo-500 text-white hover:opacity-90 sm:w-auto" disabled={creating}>
-                                        {creating ? "Creating..." : "Create Event"}
+                                    <Button type="submit" className="w-full bg-violet-600 text-white hover:bg-violet-600/90 sm:w-auto" disabled={creating}>
+                                        {creating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                        {creating ? "Creating…" : "Create Event"}
                                     </Button>
                                 </DialogFooter>
                             </form>
@@ -420,9 +429,9 @@ const CalendarPage = () => {
                 />
             </div>
 
-            {/* Filterable legend */}
-            <div className="flex flex-wrap items-center gap-2 rounded-xl border bg-card/50 px-3 py-2">
-                <span className="text-xs font-medium text-muted-foreground">Show:</span>
+            {/* Type filter */}
+            <div className="flex flex-wrap items-center gap-1.5">
+                <span className="mr-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Show</span>
                 {EVENT_TYPES.map((t) => {
                     const { label, icon: Icon, chip } = TYPE_CONFIG[t];
                     const active = visibleTypes.has(t);
@@ -430,15 +439,17 @@ const CalendarPage = () => {
                         <motion.button
                             key={t}
                             type="button"
-                            whileTap={{ scale: 0.94 }}
+                            whileTap={{ scale: 0.95 }}
                             onClick={() => toggleType(t)}
                             aria-pressed={active}
                             className={cn(
-                                "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
-                                active ? chip : "border-transparent bg-muted text-muted-foreground opacity-60 hover:opacity-100",
+                                "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-all",
+                                active
+                                    ? chip
+                                    : "border-border/60 bg-transparent text-muted-foreground/70 hover:border-border hover:text-foreground",
                             )}
                         >
-                            <Icon className="h-3 w-3" />
+                            <Icon className={cn("h-3 w-3 transition-opacity", !active && "opacity-40")} />
                             {label}
                         </motion.button>
                     );
@@ -447,45 +458,49 @@ const CalendarPage = () => {
 
             <div className="grid gap-6 lg:grid-cols-3">
                 {/* Month grid */}
-                <Card className="overflow-hidden border-border/70 shadow-sm lg:col-span-2">
+                <Card className="relative gap-0 overflow-hidden border-border/60 py-0 shadow-sm lg:col-span-2">
+                    {/* background-refetch hairline */}
+                    {isFetching && !firstLoad && (
+                        <span className="absolute inset-x-0 top-0 z-20 h-0.5 animate-pulse bg-violet-500/70" aria-hidden="true" />
+                    )}
+
                     {/* Navigation */}
-                    <div className="flex items-center justify-between border-b bg-gradient-to-r from-muted/50 to-transparent px-5 py-3">
+                    <div className="flex items-center justify-between border-b border-border/60 px-4 py-3">
                         <div className="flex items-baseline gap-2">
-                            <h2 className="font-display text-lg font-semibold">{MONTHS[month]}</h2>
-                            <span className="text-sm font-medium text-muted-foreground">{year}</span>
+                            <h2 className="font-display text-[15px] font-semibold tracking-tight">{MONTHS[month]}</h2>
+                            <span className="text-sm text-muted-foreground">{year}</span>
                             {monthEvents.length > 0 && (
-                                <span className="ml-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-                                    {monthEvents.length} event{monthEvents.length === 1 ? "" : "s"}
+                                <span className="ml-1 text-[11px] font-medium text-muted-foreground/70">
+                                    · {monthEvents.length} event{monthEvents.length === 1 ? "" : "s"}
                                 </span>
-                            )}
-                            {isFetching && !firstLoad && (
-                                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-violet-500" aria-hidden="true" />
                             )}
                         </div>
                         <div className="flex items-center gap-1">
-                            <Button variant="ghost" size="icon" aria-label="Previous month" onClick={() => goToMonth(-1)}>
+                            {!isCurrentMonth && (
+                                <Button variant="outline" size="sm" className="mr-1 h-7 px-2.5 text-xs" onClick={goToToday}>
+                                    Today
+                                </Button>
+                            )}
+                            <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Previous month" onClick={() => goToMonth(-1)}>
                                 <ChevronLeft className="h-4 w-4" />
                             </Button>
-                            {!isCurrentMonth && (
-                                <Button variant="outline" size="sm" onClick={goToToday}>Today</Button>
-                            )}
-                            <Button variant="ghost" size="icon" aria-label="Next month" onClick={() => goToMonth(1)}>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Next month" onClick={() => goToMonth(1)}>
                                 <ChevronRight className="h-4 w-4" />
                             </Button>
                         </div>
                     </div>
 
                     {/* Day headers */}
-                    <div className="grid grid-cols-7 border-b bg-muted/30">
+                    <div className="grid grid-cols-7 border-b border-border/60">
                         {DAYS.map((d, i) => {
                             const isTodayCol = isCurrentMonth && today.getDay() === i;
                             return (
                                 <div
                                     key={d}
                                     className={cn(
-                                        "py-2 text-center text-[11px] font-semibold uppercase tracking-wide",
-                                        isTodayCol ? "text-foreground" : "text-muted-foreground",
-                                        (i === 0 || i === 6) && !isTodayCol && "text-muted-foreground/60",
+                                        "py-2 text-center text-[10px] font-semibold uppercase tracking-[0.08em]",
+                                        isTodayCol ? "text-violet-600 dark:text-violet-400" : "text-muted-foreground/70",
+                                        (i === 0 || i === 6) && !isTodayCol && "text-muted-foreground/40",
                                     )}
                                 >
                                     {d}
@@ -496,10 +511,18 @@ const CalendarPage = () => {
 
                     {/* Calendar cells */}
                     <div className="overflow-hidden">
-                        {firstLoad ? (
+                        {isError && !data ? (
+                            <div className="p-6">
+                                <ErrorState
+                                    title="Couldn't load the calendar"
+                                    description="We couldn't reach the schedule. Check your connection and try again."
+                                    onRetry={refetch}
+                                />
+                            </div>
+                        ) : firstLoad ? (
                             <div className="grid grid-cols-7" style={rowStyle}>
                                 {Array.from({ length: totalCells }).map((_, i) => (
-                                    <div key={i} className="space-y-1.5 border-b border-r p-1.5 [&:nth-child(7n)]:border-r-0">
+                                    <div key={i} className="space-y-1.5 border-b border-r border-border/60 p-1.5 [&:nth-child(7n)]:border-r-0">
                                         <Skeleton className="h-6 w-6 rounded-full" />
                                         <Skeleton className="h-3 w-full" />
                                         {i % 3 === 0 && <Skeleton className="h-3 w-2/3" />}
@@ -534,35 +557,50 @@ const CalendarPage = () => {
                                                 key={i}
                                                 onClick={() => openDay(date)}
                                                 className={cn(
-                                                    "group relative flex cursor-pointer flex-col gap-1 overflow-hidden border-b border-r p-1.5 transition-colors [&:nth-child(7n)]:border-r-0",
+                                                    "group relative flex cursor-pointer flex-col gap-1 overflow-hidden border-b border-r border-border/60 p-1.5 transition-colors [&:nth-child(7n)]:border-r-0",
                                                     isLastRow && "border-b-0",
-                                                    inMonth ? "hover:bg-muted/50" : "bg-muted/[0.35] hover:bg-muted/50",
-                                                    isWeekend && inMonth && "bg-muted/20",
-                                                    isSelected && "bg-primary/[0.06] ring-1 ring-inset ring-primary/30",
+                                                    inMonth ? "hover:bg-muted/40" : "bg-muted/20 hover:bg-muted/30",
+                                                    isWeekend && inMonth && "bg-muted/[0.12]",
+                                                    isToday && "bg-violet-500/[0.04]",
+                                                    isSelected && "bg-violet-500/[0.07] ring-1 ring-inset ring-violet-500/40",
                                                 )}
                                             >
                                                 <div className="flex items-center justify-between">
                                                     <span className={cn(
                                                         "flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium tabular-nums transition-colors",
-                                                        isToday && "bg-gradient-to-br from-violet-500 to-indigo-500 font-semibold text-white shadow-sm",
-                                                        !isToday && isSelected && "font-semibold text-primary",
-                                                        !isToday && !isSelected && !inMonth && "text-muted-foreground/50",
+                                                        isToday && "bg-violet-600 font-semibold text-white shadow-sm ring-2 ring-violet-600/15",
+                                                        !isToday && isSelected && "font-semibold text-violet-700 dark:text-violet-300",
+                                                        !isToday && !isSelected && !inMonth && "text-muted-foreground/40",
                                                     )}>
                                                         {date.getDate()}
                                                     </span>
-                                                    {isTeacherOrAdmin && inMonth && (
-                                                        <button
-                                                            type="button"
-                                                            onClick={(e) => { e.stopPropagation(); openCreateOn(date); }}
-                                                            aria-label={`Add event on ${date.toLocaleDateString()}`}
-                                                            className="pointer-events-none flex h-5 w-5 items-center justify-center rounded-md text-muted-foreground opacity-0 transition hover:bg-muted hover:text-foreground group-hover:pointer-events-auto group-hover:opacity-100"
-                                                        >
-                                                            <Plus className="h-3.5 w-3.5" />
-                                                        </button>
+                                                    {isAdmin && inMonth && (
+                                                        <div className="pointer-events-none flex items-center gap-0.5 opacity-0 transition group-hover:pointer-events-auto group-hover:opacity-100">
+                                                            <button
+                                                                type="button"
+                                                                onClick={(e) => { e.stopPropagation(); openCreateOn(date); }}
+                                                                aria-label={`Add event on ${date.toLocaleDateString()}`}
+                                                                title="Add event"
+                                                                className="flex h-5 w-5 items-center justify-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                                                            >
+                                                                <Plus className="h-3.5 w-3.5" />
+                                                            </button>
+                                                            {dayEvents.some((ev) => ev.source === "manual" && ev.id > 0 && !ev.isRecurrenceInstance) && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={(e) => { e.stopPropagation(); openDay(date); }}
+                                                                    aria-label={`Remove an event on ${date.toLocaleDateString()}`}
+                                                                    title="Remove an event"
+                                                                    className="flex h-5 w-5 items-center justify-center rounded-md text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"
+                                                                >
+                                                                    <Minus className="h-3.5 w-3.5" />
+                                                                </button>
+                                                            )}
+                                                        </div>
                                                     )}
                                                 </div>
 
-                                                <div className="flex flex-col gap-0.5">
+                                                <div className="flex flex-col gap-[3px]">
                                                     {dayEvents.slice(0, 3).map((ev) => {
                                                         const cfg = TYPE_CONFIG[ev.type];
                                                         const timed = !isAllDayLike(ev);
@@ -571,20 +609,20 @@ const CalendarPage = () => {
                                                                 key={`${ev.id}-${ev.startAt}`}
                                                                 title={ev.title}
                                                                 className={cn(
-                                                                    "flex items-center gap-1 overflow-hidden rounded-[5px] py-[3px] pl-1.5 pr-1 text-[10.5px] font-medium leading-tight",
+                                                                    "flex items-center gap-1 overflow-hidden rounded-md py-[3px] pl-1.5 pr-1 text-[10.5px] font-medium leading-tight",
                                                                     cfg.cell,
-                                                                    !inMonth && "opacity-60",
+                                                                    !inMonth && "opacity-55",
                                                                 )}
                                                             >
                                                                 {timed && (
-                                                                    <span className="shrink-0 tabular-nums opacity-70">{compactTime(ev.startAt)}</span>
+                                                                    <span className="shrink-0 text-[9.5px] tabular-nums opacity-60">{compactTime(ev.startAt)}</span>
                                                                 )}
                                                                 <span className="truncate">{ev.title}</span>
                                                             </div>
                                                         );
                                                     })}
                                                     {overflow > 0 && (
-                                                        <span className="w-fit rounded px-1 text-[10px] font-medium text-muted-foreground">
+                                                        <span className="pl-1.5 text-[10px] font-medium text-muted-foreground/70">
                                                             +{overflow} more
                                                         </span>
                                                     )}
@@ -599,11 +637,11 @@ const CalendarPage = () => {
                 </Card>
 
                 {/* Day agenda panel */}
-                <Card className="overflow-hidden border-border/70 shadow-sm lg:sticky lg:top-4 lg:self-start">
+                <Card className="gap-0 overflow-hidden border-border/60 py-0 shadow-sm lg:sticky lg:top-4 lg:self-start">
                     {selectedDay ? (
-                        <div className="flex items-center gap-3 border-b bg-gradient-to-br from-violet-500/10 to-indigo-500/5 px-5 py-4">
-                            <div className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-xl border bg-background shadow-sm">
-                                <span className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        <div className="flex items-center gap-3 border-b border-border/60 bg-violet-500/[0.04] px-5 py-4">
+                            <div className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-xl border border-violet-500/20 bg-background shadow-sm">
+                                <span className="text-[9px] font-semibold uppercase tracking-wide text-violet-600 dark:text-violet-400">
                                     {selectedDay.toLocaleDateString(undefined, { month: "short" })}
                                 </span>
                                 <span className="text-lg font-bold leading-none tabular-nums">{selectedDay.getDate()}</span>
@@ -620,7 +658,7 @@ const CalendarPage = () => {
                             </div>
                         </div>
                     ) : (
-                        <div className="border-b bg-muted/20 px-5 py-4">
+                        <div className="border-b border-border/60 px-5 py-4">
                             <p className="font-display text-base font-semibold">Agenda</p>
                             <p className="text-xs text-muted-foreground">Pick a day to see its schedule.</p>
                         </div>
@@ -632,7 +670,7 @@ const CalendarPage = () => {
                         ) : selectedEvents.length === 0 ? (
                             <PanelEmpty icon={CalendarDays} text="Nothing scheduled for this day." />
                         ) : (
-                            <ol className="relative space-y-3 before:absolute before:bottom-2 before:left-[15px] before:top-2 before:w-px before:bg-border before:content-['']">
+                            <ol className="relative space-y-2.5 before:absolute before:bottom-3 before:left-[14px] before:top-3 before:w-px before:bg-border/70 before:content-['']">
                                 {selectedEvents.map((ev, index) => {
                                     const { label, icon: Icon, chip, iconWrap } = TYPE_CONFIG[ev.type];
                                     return (
@@ -644,23 +682,50 @@ const CalendarPage = () => {
                                             className="relative flex gap-3"
                                         >
                                             <div className={cn(
-                                                "z-10 mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ring-4 ring-background",
+                                                "z-10 mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full ring-4 ring-background",
                                                 iconWrap,
                                             )}>
-                                                <Icon className="h-4 w-4" />
+                                                <Icon className="h-3.5 w-3.5" />
                                             </div>
-                                            <div className="min-w-0 flex-1 space-y-1.5 rounded-lg border bg-card p-3 shadow-sm">
+                                            <div className="min-w-0 flex-1 space-y-1.5 rounded-xl border border-border/60 bg-card/60 p-3 transition-colors hover:border-border">
                                                 <div className="flex items-start justify-between gap-2">
                                                     <span className="text-sm font-medium leading-snug">{ev.title}</span>
-                                                    {isTeacherOrAdmin && ev.source === "manual" && ev.id > 0 && !ev.isRecurrenceInstance && (
-                                                        <button
-                                                            onClick={() => handleDelete(ev.id)}
-                                                            aria-label={`Delete event: ${ev.title}`}
-                                                            title={ev.recurrenceFreq && ev.recurrenceFreq !== "none" ? "Delete this entire series" : "Delete event"}
-                                                            className="shrink-0 text-muted-foreground transition-colors hover:text-destructive"
-                                                        >
-                                                            <X className="h-3.5 w-3.5" aria-hidden="true" />
-                                                        </button>
+                                                    {isAdmin && ev.source === "manual" && ev.id > 0 && !ev.isRecurrenceInstance && (
+                                                        <AlertDialog>
+                                                            <AlertDialogTrigger asChild>
+                                                                <button
+                                                                    type="button"
+                                                                    disabled={deletingId === ev.id}
+                                                                    aria-label={`Delete event: ${ev.title}`}
+                                                                    className="-mr-1 -mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+                                                                >
+                                                                    {deletingId === ev.id
+                                                                        ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                                                                        : <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />}
+                                                                </button>
+                                                            </AlertDialogTrigger>
+                                                            <AlertDialogContent>
+                                                                <AlertDialogHeader>
+                                                                    <AlertDialogTitle>Delete this event?</AlertDialogTitle>
+                                                                    <AlertDialogDescription>
+                                                                        &ldquo;{ev.title}&rdquo;
+                                                                        {ev.recurrenceFreq && ev.recurrenceFreq !== "none"
+                                                                            ? " and every occurrence in the series"
+                                                                            : ""}{" "}
+                                                                        will be permanently removed from the calendar.
+                                                                    </AlertDialogDescription>
+                                                                </AlertDialogHeader>
+                                                                <AlertDialogFooter>
+                                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                                    <AlertDialogAction
+                                                                        onClick={() => handleDelete(ev.id)}
+                                                                        className="bg-destructive text-white hover:bg-destructive/90"
+                                                                    >
+                                                                        Delete event
+                                                                    </AlertDialogAction>
+                                                                </AlertDialogFooter>
+                                                            </AlertDialogContent>
+                                                        </AlertDialog>
                                                     )}
                                                 </div>
                                                 <div className="flex flex-wrap items-center gap-1.5">

@@ -22,15 +22,24 @@ export async function fetchJson<T>(path: string): Promise<T> {
  * hand-rolled fetch + useState + useEffect per page.
  *
  * Pass `path: null` to skip the request (e.g. while a dependent id is unknown).
+ *
+ * Dashboard aggregate endpoints (`/dashboard/*`) are given a longer stale window
+ * by default: they roll up counts/trends that don't move second-to-second, and
+ * the dashboard is the most-revisited screen. A 2-minute stale window means
+ * navigating away and back paints instantly from cache with no refetch and no
+ * skeleton flash. Any caller can still override via `options`.
  */
 export function useApiQuery<T>(
     path: string | null,
     options?: Omit<UseQueryOptions<T, Error>, "queryKey" | "queryFn">
 ) {
+    const isDashboardAggregate = path?.startsWith("/dashboard/") ?? false;
+
     return useQuery<T, Error>({
         queryKey: [path],
         queryFn: () => fetchJson<T>(path as string),
         enabled: path !== null && (options?.enabled ?? true),
+        ...(isDashboardAggregate ? { staleTime: 120_000, gcTime: 600_000 } : {}),
         ...options,
     });
 }

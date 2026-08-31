@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useGetIdentity } from "@refinedev/core";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Send, MessageSquare } from "lucide-react";
-import { Breadcrumb } from "@/components/layout/breadcrumb.tsx";
+import { ArrowLeft, Send, MessageSquare } from "lucide-react";
+import { PageHeader } from "@/components/layout/page-header.tsx";
 import { Card } from "@/components/ui/card.tsx";
 import { Input } from "@/components/ui/input.tsx";
 import { Button } from "@/components/ui/button.tsx";
@@ -53,7 +53,7 @@ const MessagesPage = () => {
     const { data: threadData, isLoading: threadLoading } = useApiQuery<{ data: Message[] }>(threadPath, {
         refetchInterval: activePartner ? 4000 : false,
     });
-    const thread = threadData?.data ?? [];
+    const thread = useMemo(() => threadData?.data ?? [], [threadData]);
 
     const loadThread = (partner: Partner) => setActivePartner(partner);
 
@@ -96,12 +96,11 @@ const MessagesPage = () => {
 
     return (
         <div className="messages-page space-y-4">
-            <Breadcrumb />
-            <h1 className="text-2xl font-semibold tracking-tight">Messages</h1>
+            <PageHeader breadcrumb title="Messages" description="Direct messages with your school community." />
 
             <div className="grid gap-4 md:grid-cols-3 h-[calc(100vh-220px)] min-h-[500px]">
-                {/* Conversations sidebar */}
-                <Card className="flex flex-col overflow-hidden">
+                {/* Conversations sidebar — hidden on mobile once a thread is open */}
+                <Card className={cn("flex-col overflow-hidden", activePartner ? "hidden md:flex" : "flex")}>
                     <div className="p-3 border-b">
                         <div className="flex gap-2">
                             <Input aria-label="Start a new conversation by email" placeholder="Start new: enter email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)}
@@ -154,8 +153,8 @@ const MessagesPage = () => {
                     </ScrollArea>
                 </Card>
 
-                {/* Chat thread */}
-                <Card className="md:col-span-2 flex flex-col overflow-hidden">
+                {/* Chat thread — full-width on mobile, hidden until a thread is open */}
+                <Card className={cn("md:col-span-2 flex-col overflow-hidden", activePartner ? "flex" : "hidden md:flex")}>
                     {!activePartner ? (
                         <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
                             <div className="text-center">
@@ -166,6 +165,15 @@ const MessagesPage = () => {
                     ) : (
                         <>
                             <div className="flex items-center gap-3 border-b p-3">
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="-ml-1 h-8 w-8 shrink-0 md:hidden"
+                                    onClick={() => setActivePartner(null)}
+                                    aria-label="Back to conversations"
+                                >
+                                    <ArrowLeft className="h-4 w-4" />
+                                </Button>
                                 <Avatar className="h-8 w-8">
                                     {activePartner.image && <AvatarImage src={activePartner.image} />}
                                     <AvatarFallback>{getInitials(activePartner.name)}</AvatarFallback>

@@ -1,11 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useGetIdentity, useList } from "@refinedev/core";
 import { useQueryClient } from "@tanstack/react-query";
+import { useSearchParams } from "react-router";
 import { toast } from "sonner";
-import { CalendarClock, ChevronDown, ChevronUp, Loader2, Plus, Trash2 } from "lucide-react";
+import { BookOpenCheck, CalendarClock, ChevronDown, ChevronUp, Loader2, Plus, Trash2 } from "lucide-react";
 
-import { Breadcrumb } from "@/components/layout/breadcrumb.tsx";
+import { PageHeader } from "@/components/layout/page-header.tsx";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card.tsx";
+import { EmptyState } from "@/components/ui/empty-state.tsx";
+import { ErrorState } from "@/components/ui/error-state.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { Input } from "@/components/ui/input.tsx";
 import { Label } from "@/components/ui/label.tsx";
@@ -48,7 +51,8 @@ const ExamsPage = () => {
   const isTeacherOrAdmin = identity?.role === UserRole.TEACHER || identity?.role === UserRole.ADMIN || identity?.role === UserRole.SUPER_ADMIN;
 
   const queryClient = useQueryClient();
-  const [classId, setClassId] = useState("");
+  const [searchParams] = useSearchParams();
+  const [classId, setClassId] = useState(searchParams.get("classId") ?? "");
   const [expandedExamId, setExpandedExamId] = useState<number | null>(null);
   const [scoreDrafts, setScoreDrafts] = useState<Record<string, string>>({});
   const [savingResults, setSavingResults] = useState<number | null>(null);
@@ -64,12 +68,12 @@ const ExamsPage = () => {
   const [showForm, setShowForm] = useState(false);
 
   const { query: classesQuery } = useList<ClassDetails>({ resource: "classes", pagination: { pageSize: 100 } });
-  const classes = classesQuery?.data?.data ?? [];
+  const classes = useMemo(() => classesQuery?.data?.data ?? [], [classesQuery?.data?.data]);
 
   useEffect(() => { if (!classId && classes.length > 0) setClassId(String(classes[0].id)); }, [classes, classId]);
 
   const examsPath = classId ? `/grades/exams?classId=${classId}` : null;
-  const { data: examsData, isLoading: loading } = useApiQuery<{ data: Exam[] }>(examsPath);
+  const { data: examsData, isLoading: loading, isError, refetch } = useApiQuery<{ data: Exam[] }>(examsPath);
   const exams = examsData?.data ?? [];
 
   // Needed for grading, so fetched once a class is picked rather than lazily on first exam expand —
@@ -138,25 +142,24 @@ const ExamsPage = () => {
 
   return (
     <div className="exams-page space-y-6">
-      <Breadcrumb />
-
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Exams</h1>
-          <p className="text-sm text-muted-foreground">Schedule exams and enter student scores.</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Select value={classId} onValueChange={(v) => { setClassId(v); setExpandedExamId(null); }}>
-            <SelectTrigger className="w-[220px]"><SelectValue placeholder="Select class" /></SelectTrigger>
-            <SelectContent>{classes.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}</SelectContent>
-          </Select>
-          {isTeacherOrAdmin && (
-            <Button onClick={() => setShowForm((v) => !v)}>
-              <Plus className="mr-1.5 h-4 w-4" />{showForm ? "Cancel" : "New Exam"}
-            </Button>
-          )}
-        </div>
-      </div>
+      <PageHeader
+        breadcrumb
+        title="Exams"
+        description="Schedule exams and enter student scores."
+        actions={
+          <>
+            <Select value={classId} onValueChange={(v) => { setClassId(v); setExpandedExamId(null); }}>
+              <SelectTrigger className="w-[200px]"><SelectValue placeholder="Select class" /></SelectTrigger>
+              <SelectContent>{classes.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}</SelectContent>
+            </Select>
+            {isTeacherOrAdmin && (
+              <Button onClick={() => setShowForm((v) => !v)}>
+                <Plus className="mr-1.5 h-4 w-4" />{showForm ? "Cancel" : "New Exam"}
+              </Button>
+            )}
+          </>
+        }
+      />
 
       {showForm && isTeacherOrAdmin && (
         <Card className="max-w-2xl">
@@ -182,8 +185,14 @@ const ExamsPage = () => {
 
       <div className="space-y-3">
         {loading ? Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-16 w-full rounded-xl" />) :
-          exams.length === 0 ? (
-            <Card className="p-10 text-center text-sm text-muted-foreground">No exams scheduled yet.</Card>
+          isError ? (
+            <ErrorState description="Couldn't load exams for this class." onRetry={refetch} />
+          ) : exams.length === 0 ? (
+            <EmptyState
+              icon={BookOpenCheck}
+              title="No exams scheduled"
+              description={isTeacherOrAdmin ? "Create an exam to schedule it and enter scores." : "No exams have been scheduled for this class yet."}
+            />
           ) : exams.map((exam) => (
             <Card key={exam.id}>
               <div className="flex items-center justify-between gap-4 p-4">

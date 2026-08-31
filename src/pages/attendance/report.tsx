@@ -1,18 +1,20 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useGetIdentity, useList } from "@refinedev/core";
-import { toast } from "sonner";
 import { Download, Loader2, Printer } from "lucide-react";
 import { PDFDownloadLink } from "@react-pdf/renderer";
+import { useDownload } from "@/hooks/use-download.ts";
 
-import { Breadcrumb } from "@/components/layout/breadcrumb.tsx";
+import { PageHeader } from "@/components/layout/page-header.tsx";
 import { Card } from "@/components/ui/card.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select.tsx";
 import { Skeleton } from "@/components/ui/skeleton.tsx";
 import { Progress } from "@/components/ui/progress.tsx";
+import { EmptyState } from "@/components/ui/empty-state.tsx";
+import { ErrorState } from "@/components/ui/error-state.tsx";
+import { SummaryBar, type SummaryItem } from "@/components/ui/summary-bar.tsx";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table.tsx";
 import { AttendanceReportDocument } from "@/components/pdf/attendance-report-document.tsx";
-import { BACKEND_BASE_URL } from "@/constants";
 import { useApiQuery } from "@/hooks/use-api-query.ts";
 import { UserRole, type ClassDetails, type User } from "@/types";
 
@@ -30,27 +32,26 @@ type ReportRow = {
 
 const rateColor = (rate: number | null) => {
   if (rate === null) return "text-muted-foreground";
-  if (rate >= 90) return "text-emerald-600";
-  if (rate >= 75) return "text-amber-600";
-  return "text-red-600";
+  if (rate >= 90) return "text-emerald-600 dark:text-emerald-400";
+  if (rate >= 75) return "text-amber-600 dark:text-amber-400";
+  return "text-red-600 dark:text-red-400";
 };
 
 const AttendanceReport = () => {
   const { data: identity } = useGetIdentity<User>();
   const isStudent = identity?.role === UserRole.STUDENT;
+  const { narrateDownload } = useDownload();
 
   const [classId, setClassId] = useState<string>("");
-  const [rows, setRows] = useState<ReportRow[]>([]);
-  const [loading, setLoading] = useState(false);
 
   const { query: classesQuery } = useList<ClassDetails>({
     resource: "classes",
     pagination: { pageSize: 100 },
   });
-  const allClasses = classesQuery?.data?.data ?? [];
+  const allClasses = useMemo(() => classesQuery?.data?.data ?? [], [classesQuery?.data?.data]);
 
-  // A student can only view their own attendance, and only for a class
-  // they're actually enrolled in — so the picker only offers those.
+  // A student can only view their own attendance, and only for a class they're
+  // actually enrolled in — so the picker only offers those.
   const { data: enrolledIdsData } = useApiQuery<{ data: number[] }>(isStudent ? "/classes/enrolled-ids" : null);
   const enrolledIds = enrolledIdsData?.data ?? [];
   const classes = isStudent ? allClasses.filter((c) => enrolledIds.includes(c.id)) : allClasses;
@@ -59,90 +60,109 @@ const AttendanceReport = () => {
     if (!classId && classes.length > 0) setClassId(String(classes[0].id));
   }, [classes, classId]);
 
-  useEffect(() => {
-    if (!classId) return;
-
-    const controller = new AbortController();
-    setLoading(true);
-
-    fetch(`${BACKEND_BASE_URL}/attendance/class/${classId}/report`, {
-      credentials: "include",
-      signal: controller.signal,
-    })
-      .then(async (res) => {
-        if (!res.ok) throw new Error((await res.json())?.message ?? "Failed to load report");
-        return res.json();
-      })
-      .then((json: { data: ReportRow[] }) => setRows(json.data))
-      .catch((e) => {
-        if (e.name !== "AbortError") toast.error(e.message ?? "Failed to load attendance report");
-      })
-      .finally(() => setLoading(false));
-
-    return () => controller.abort();
-  }, [classId]);
+  const { data, isLoading, isError, refetch } = useApiQuery<{ data: ReportRow[] }>(
+    classId ? `/attendance/class/${classId}/report` : null,
+  );
+  const rows = data?.data ?? [];
 
   const selectedClassName = classes.find((c) => String(c.id) === classId)?.name ?? "";
+  const pdfFileName = `attendance-report-${selectedClassName.replace(/\s+/g, "-").toLowerCase() || classId}.pdf`;
+
+  const withData = rows.filter((r) => r.totalMarked > 0);
+  const classAvg =
+    withData.length > 0
+      ? Math.round(withData.reduce((s, r) => s + (r.attendanceRate ?? 0), 0) / withData.length)
+      : null;
+  const belowThreshold = withData.filter((r) => (r.attendanceRate ?? 0) < 75).length;
+
+  const summaryItems: SummaryItem[] = isStudent
+    ? [
+        { label: "Your attendance rate", value: classAvg !== null ? `${classAvg}%` : "—", tone: classAvg === null ? "default" : classAvg >= 75 ? "success" : "critical" },
+        { label: "Sessions recorded", value: withData[0]?.totalMarked ?? 0 },
+        { label: "Absences", value: withData[0]?.absentCount ?? 0, tone: (withData[0]?.absentCount ?? 0) > 0 ? "warning" : "default" },
+      ]
+    : [
+        { label: "Class average", value: classAvg !== null ? `${classAvg}%` : "—", tone: classAvg === null ? "default" : classAvg >= 75 ? "success" : "warning" },
+        { label: "Students tracked", value: withData.length, hint: `${rows.length} enrolled` },
+        { label: "Below 75%", value: belowThreshold, tone: belowThreshold > 0 ? "critical" : "success" },
+      ];
 
   return (
     <div className="attendance-report space-y-6">
-      <div className="print:hidden"><Breadcrumb /></div>
+      <PageHeader
+        className="print:hidden"
+        breadcrumb
+        title="Attendance Report"
+        description={
+          isStudent
+            ? "Your attendance rate for the selected class."
+            : "Per-student attendance rate for the selected class."
+        }
+        actions={
+          <>
+            <Select value={classId} onValueChange={setClassId}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Select a class" />
+              </SelectTrigger>
+              <SelectContent>
+                {classes.map((c) => (
+                  <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button variant="outline" size="sm" onClick={() => window.print()}>
+              <Printer className="mr-1.5 h-4 w-4" /> Print
+            </Button>
+            {!isLoading && rows.length > 0 && (
+              <PDFDownloadLink
+                document={<AttendanceReportDocument className={selectedClassName} rows={rows} />}
+                fileName={pdfFileName}
+              >
+                {({ loading: pdfLoading }) => (
+                  <Button
+                    size="sm"
+                    disabled={pdfLoading}
+                    onClick={() => !pdfLoading && narrateDownload(pdfFileName)}
+                  >
+                    {pdfLoading ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Download className="mr-1.5 h-4 w-4" />}
+                    Download PDF
+                  </Button>
+                )}
+              </PDFDownloadLink>
+            )}
+          </>
+        }
+      />
 
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Attendance Report</h1>
-          <p className="text-sm text-muted-foreground print:hidden">
-            {isStudent ? "Your attendance rate for the selected class." : "Per-student attendance rate for the selected class."}
-          </p>
-          <p className="hidden text-sm text-muted-foreground print:block">
-            {selectedClassName} · Generated {new Date().toLocaleDateString()}
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3 print:hidden">
-          <Select value={classId} onValueChange={setClassId}>
-            <SelectTrigger className="w-[220px]">
-              <SelectValue placeholder="Select a class" />
-            </SelectTrigger>
-            <SelectContent>
-              {classes.map((c) => (
-                <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button variant="outline" onClick={() => window.print()}>
-            <Printer className="mr-1.5 h-4 w-4" /> Print
-          </Button>
-          {!loading && rows.length > 0 && (
-            <PDFDownloadLink
-              document={<AttendanceReportDocument className={selectedClassName} rows={rows} />}
-              fileName={`attendance-report-${selectedClassName.replace(/\s+/g, "-").toLowerCase() || classId}.pdf`}
-            >
-              {({ loading: pdfLoading }) => (
-                <Button disabled={pdfLoading}>
-                  {pdfLoading ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Download className="mr-1.5 h-4 w-4" />}
-                  Download PDF
-                </Button>
-              )}
-            </PDFDownloadLink>
-          )}
-        </div>
+      <div className="hidden print:block">
+        <h1 className="text-xl font-bold">Attendance Report</h1>
+        <p className="text-sm text-muted-foreground">
+          {selectedClassName} · Generated {new Date().toLocaleDateString()}
+        </p>
       </div>
 
-      <Card>
-        {loading ? (
-          <div className="space-y-3 p-4">
-            {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
-          </div>
-        ) : rows.length === 0 ? (
-          <div className="p-10 text-center text-sm text-muted-foreground">
-            {isStudent
+      {!isLoading && !isError && rows.length > 0 && <SummaryBar items={summaryItems} />}
+
+      {isLoading ? (
+        <Card className="space-y-3 p-4">
+          {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
+        </Card>
+      ) : isError ? (
+        <ErrorState description="Couldn't load the attendance report." onRetry={refetch} />
+      ) : rows.length === 0 ? (
+        <EmptyState
+          icon={Printer}
+          title={isStudent ? "Nothing recorded yet" : "No data to report"}
+          description={
+            isStudent
               ? classes.length === 0
                 ? "You're not enrolled in any classes yet."
-                : "No attendance recorded for you in this class yet."
-              : "No enrolled students to report on yet."}
-          </div>
-        ) : (
+                : "No attendance has been recorded for you in this class yet."
+              : "No attendance has been recorded for this class yet."
+          }
+        />
+      ) : (
+        <Card className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -177,8 +197,8 @@ const AttendanceReport = () => {
               ))}
             </TableBody>
           </Table>
-        )}
-      </Card>
+        </Card>
+      )}
     </div>
   );
 };

@@ -16,16 +16,21 @@ const getInitials = (name = "") => {
   return initials;
 };
 
-export function UserAvatar() {
+type UserAvatarProps = {
+  /** Override the default h-10 w-10 sizing (e.g. a compact avatar in the sidebar footer). */
+  className?: string;
+};
+
+export function UserAvatar({ className }: UserAvatarProps = {}) {
   const { data: user, isLoading: userIsLoading } = useGetIdentity<User>();
 
   if (userIsLoading) {
-    return <Skeleton className={cn("h-10", "w-10", "rounded-full")} />;
+    return <Skeleton className={cn("h-10 w-10 rounded-full", className)} />;
   }
 
   if (!user) {
     return (
-      <Avatar className={cn("h-10", "w-10")}>
+      <Avatar className={cn("h-10 w-10", className)}>
         <AvatarFallback>
           <UserIcon className="h-5 w-5" />
         </AvatarFallback>
@@ -34,7 +39,7 @@ export function UserAvatar() {
   }
 
   return (
-    <Avatar className={cn("h-10", "w-10")}>
+    <Avatar className={cn("h-10 w-10", className)}>
       {user.image && <AvatarImage src={user.image} alt={user.name} />}
 
       <AvatarFallback>
