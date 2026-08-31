@@ -1,12 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Eye, EyeOff, GraduationCap, Loader2 } from "lucide-react";
+import { Eye, EyeOff, GraduationCap, Loader2, LogIn, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { cn } from "@/lib/utils";
 import { useLink, useLogin } from "@refinedev/core";
 import { GoogleSignInButton } from "./google-sign-in-button";
 
@@ -137,7 +136,7 @@ export const SignInForm = () => {
             </div>
 
             <Button type="submit" className="w-full h-11 text-base" disabled={loading}>
-              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogIn className="h-4 w-4" />}
               {loading ? "Signing in..." : "Sign in"}
             </Button>
           </form>
@@ -149,14 +148,12 @@ export const SignInForm = () => {
             </span>
           </div>
 
-          <p className="text-center text-sm">
-            <Link
-              to="/register"
-              className={cn("font-semibold text-primary underline-offset-4 hover:underline")}
-            >
+          <Button asChild variant="outline" className="h-11 w-full text-base">
+            <Link to="/register">
+              <UserPlus className="h-4 w-4" />
               Create an account
             </Link>
-          </p>
+          </Button>
         </div>
       </div>
     </div>
