@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card.t
 import { Button } from "@/components/ui/button.tsx";
 import { Input } from "@/components/ui/input.tsx";
 import { Label } from "@/components/ui/label.tsx";
+import { Field } from "@/components/ui/field.tsx";
 import { Textarea } from "@/components/ui/textarea.tsx";
 import { Separator } from "@/components/ui/separator.tsx";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select.tsx";
@@ -83,10 +84,9 @@ const AssignmentsCreate = () => {
         <Separator />
         <CardContent className="mt-6">
           <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="space-y-2">
-              <Label>Class <span className="text-orange-600">*</span></Label>
+            <Field label="Class" required htmlFor="assignment-class">
               <Select value={classId} onValueChange={setClassId}>
-                <SelectTrigger className="w-full">
+                <SelectTrigger id="assignment-class" className="w-full">
                   <SelectValue placeholder="Select a class" />
                 </SelectTrigger>
                 <SelectContent>
@@ -95,30 +95,26 @@ const AssignmentsCreate = () => {
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+            </Field>
 
-            <div className="space-y-2">
-              <Label>Title <span className="text-orange-600">*</span></Label>
+            <Field label="Title" required>
               <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Essay: The Causes of WWI" />
-            </div>
+            </Field>
 
-            <div className="space-y-2">
-              <Label>Description</Label>
+            <Field label="Description">
               <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Instructions for students..." rows={5} />
-            </div>
+            </Field>
 
             <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Due date</Label>
+              <Field
+                label="Due date"
+                hint="Students see a live countdown to this moment; submissions close automatically once it passes."
+              >
                 <Input type="datetime-local" value={dueAt} onChange={(e) => setDueAt(e.target.value)} />
-                <p className="text-xs text-muted-foreground">
-                  Students see a live countdown to this moment; submissions close automatically once it passes.
-                </p>
-              </div>
-              <div className="space-y-2">
-                <Label>Max score</Label>
+              </Field>
+              <Field label="Max score">
                 <Input type="number" min={1} value={maxScore} onChange={(e) => setMaxScore(e.target.value)} />
-              </div>
+              </Field>
             </div>
 
             <div className="space-y-2">

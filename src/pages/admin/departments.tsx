@@ -7,7 +7,7 @@ import { PageHeader } from "@/components/layout/page-header.tsx";
 import { Card } from "@/components/ui/card.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { Input } from "@/components/ui/input.tsx";
-import { Label } from "@/components/ui/label.tsx";
+import { Field } from "@/components/ui/field.tsx";
 import { Textarea } from "@/components/ui/textarea.tsx";
 import { Skeleton } from "@/components/ui/skeleton.tsx";
 import { EmptyState } from "@/components/ui/empty-state.tsx";
@@ -115,18 +115,15 @@ const DepartmentsPage = () => {
                             </DialogDescription>
                         </DialogHeader>
                         <form onSubmit={handleSubmit} className="space-y-4">
-                            <div className="space-y-2">
-                                <Label>Name *</Label>
+                            <Field label="Name" required>
                                 <Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="Computer Science" />
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Code *</Label>
+                            </Field>
+                            <Field label="Code" required>
                                 <Input value={form.code} onChange={(e) => setForm((f) => ({ ...f, code: e.target.value }))} placeholder="CS" />
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Description</Label>
+                            </Field>
+                            <Field label="Description">
                                 <Textarea value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} rows={3} />
-                            </div>
+                            </Field>
                             <DialogFooter>
                                 <Button type="submit" disabled={submitting}>
                                     {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

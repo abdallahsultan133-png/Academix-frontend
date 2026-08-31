@@ -11,7 +11,7 @@ import { EmptyState } from "@/components/ui/empty-state.tsx";
 import { ErrorState } from "@/components/ui/error-state.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { Input } from "@/components/ui/input.tsx";
-import { Label } from "@/components/ui/label.tsx";
+import { Field } from "@/components/ui/field.tsx";
 import { Textarea } from "@/components/ui/textarea.tsx";
 import { Separator } from "@/components/ui/separator.tsx";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select.tsx";
@@ -167,13 +167,13 @@ const ExamsPage = () => {
           <Separator />
           <CardContent className="mt-4">
             <form onSubmit={handleCreate} className="space-y-4">
-              <div className="space-y-2"><Label>Title *</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Midterm Examination" /></div>
-              <div className="space-y-2"><Label>Description</Label><Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} /></div>
+              <Field label="Title" required><Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Midterm Examination" /></Field>
+              <Field label="Description"><Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} /></Field>
               <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2"><Label>Date & Time</Label><Input type="datetime-local" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} /></div>
-                <div className="space-y-2"><Label>Duration (minutes)</Label><Input type="number" value={durationMinutes} onChange={(e) => setDurationMinutes(e.target.value)} placeholder="120" /></div>
-                <div className="space-y-2"><Label>Max Score</Label><Input type="number" value={maxScore} onChange={(e) => setMaxScore(e.target.value)} /></div>
-                <div className="space-y-2"><Label>Venue</Label><Input value={venue} onChange={(e) => setVenue(e.target.value)} placeholder="Room 101" /></div>
+                <Field label="Date & Time"><Input type="datetime-local" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} /></Field>
+                <Field label="Duration (minutes)"><Input type="number" value={durationMinutes} onChange={(e) => setDurationMinutes(e.target.value)} placeholder="120" /></Field>
+                <Field label="Max Score"><Input type="number" value={maxScore} onChange={(e) => setMaxScore(e.target.value)} /></Field>
+                <Field label="Venue"><Input value={venue} onChange={(e) => setVenue(e.target.value)} placeholder="Room 101" /></Field>
               </div>
               <Button type="submit" className="w-full" disabled={creating}>
                 {creating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Create Exam
@@ -209,7 +209,7 @@ const ExamsPage = () => {
                   {isTeacherOrAdmin && (
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-muted-foreground" /></Button>
+                        <Button variant="ghost" size="icon" aria-label={`Delete exam: ${exam.title}`}><Trash2 className="h-4 w-4 text-muted-foreground" aria-hidden="true" /></Button>
                       </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader><AlertDialogTitle>Delete exam?</AlertDialogTitle><AlertDialogDescription>This also deletes all results. Cannot be undone.</AlertDialogDescription></AlertDialogHeader>
@@ -244,6 +244,7 @@ const ExamsPage = () => {
                               <TableCell><div className="font-medium">{s.name}</div><div className="text-xs text-muted-foreground">{s.email}</div></TableCell>
                               <TableCell>
                                 <Input type="number" min={0} max={exam.maxScore} className="w-24"
+                                  aria-label={`Score for ${s.name} out of ${exam.maxScore}`}
                                   value={scoreDrafts[s.studentId] ?? ""}
                                   placeholder="—"
                                   onChange={(e) => setScoreDrafts((prev) => ({ ...prev, [s.studentId]: e.target.value }))}

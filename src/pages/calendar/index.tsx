@@ -14,6 +14,7 @@ import { Card, CardContent } from "@/components/ui/card.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { Input } from "@/components/ui/input.tsx";
 import { Label } from "@/components/ui/label.tsx";
+import { Field } from "@/components/ui/field.tsx";
 import { Textarea } from "@/components/ui/textarea.tsx";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select.tsx";
 import { Switch } from "@/components/ui/switch.tsx";
@@ -329,14 +330,12 @@ const CalendarPage = () => {
                             </DialogHeader>
                             <form onSubmit={handleCreate} className="space-y-4">
                                 <div className="grid gap-4 sm:grid-cols-2">
-                                    <div className="space-y-2 sm:col-span-2">
-                                        <Label>Title *</Label>
+                                    <Field label="Title" required className="sm:col-span-2">
                                         <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Sports Day" />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label>Type</Label>
+                                    </Field>
+                                    <Field label="Type" htmlFor="event-type">
                                         <Select value={type} onValueChange={(v) => setType(v as CalendarEventType)}>
-                                            <SelectTrigger><SelectValue /></SelectTrigger>
+                                            <SelectTrigger id="event-type"><SelectValue /></SelectTrigger>
                                             <SelectContent>
                                                 {EVENT_TYPES.map((t) => {
                                                     const { label, icon: Icon, dot } = TYPE_CONFIG[t];
@@ -352,40 +351,35 @@ const CalendarPage = () => {
                                                 })}
                                             </SelectContent>
                                         </Select>
-                                    </div>
+                                    </Field>
                                     <div className="flex items-center gap-2 pt-7">
                                         <Switch checked={allDay} onCheckedChange={setAllDay} id="allDay" />
                                         <Label htmlFor="allDay">All day</Label>
                                     </div>
-                                    <div className="space-y-2">
-                                        <Label>{allDay ? "Start date" : "Start"} *</Label>
+                                    <Field label={`${allDay ? "Start date" : "Start"}`} required>
                                         <Input type={allDay ? "date" : "datetime-local"} value={startAt} onChange={(e) => setStartAt(e.target.value)} />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label>{allDay ? "End date" : "End"}</Label>
+                                    </Field>
+                                    <Field label={allDay ? "End date" : "End"}>
                                         <Input type={allDay ? "date" : "datetime-local"} value={endAt} onChange={(e) => setEndAt(e.target.value)} />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label className="flex items-center gap-1.5"><Repeat className="h-3.5 w-3.5" /> Repeat</Label>
+                                    </Field>
+                                    <Field label={<><Repeat className="h-3.5 w-3.5" /> Repeat</>} htmlFor="event-repeat">
                                         <Select value={recurrenceFreq} onValueChange={(v) => setRecurrenceFreq(v as RecurrenceFreq)}>
-                                            <SelectTrigger><SelectValue /></SelectTrigger>
+                                            <SelectTrigger id="event-repeat"><SelectValue /></SelectTrigger>
                                             <SelectContent>
                                                 {(Object.keys(RECURRENCE_LABELS) as RecurrenceFreq[]).map((f) => (
                                                     <SelectItem key={f} value={f}>{RECURRENCE_LABELS[f]}</SelectItem>
                                                 ))}
                                             </SelectContent>
                                         </Select>
-                                    </div>
+                                    </Field>
                                     {recurrenceFreq !== "none" && (
-                                        <div className="space-y-2">
-                                            <Label>Repeat until (optional)</Label>
+                                        <Field label="Repeat until (optional)">
                                             <Input type="date" value={recurrenceEndAt} onChange={(e) => setRecurrenceEndAt(e.target.value)} />
-                                        </div>
+                                        </Field>
                                     )}
-                                    <div className="space-y-2 sm:col-span-2">
-                                        <Label>Description</Label>
+                                    <Field label="Description" className="sm:col-span-2">
                                         <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
-                                    </div>
+                                    </Field>
                                 </div>
                                 <DialogFooter>
                                     <Button type="submit" className="w-full bg-violet-600 text-white hover:bg-violet-600/90 sm:w-auto" disabled={creating}>
@@ -552,12 +546,24 @@ const CalendarPage = () => {
                                         const dayEvents = eventsOn(date);
                                         const overflow = dayEvents.length - 3;
 
+                                        const dayLabel = `${date.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}${dayEvents.length ? `, ${dayEvents.length} event${dayEvents.length === 1 ? "" : "s"}` : ", no events"}`;
+
                                         return (
                                             <div
                                                 key={i}
+                                                role="button"
+                                                tabIndex={0}
+                                                aria-label={dayLabel}
+                                                aria-current={isToday ? "date" : undefined}
                                                 onClick={() => openDay(date)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === "Enter" || e.key === " ") {
+                                                        e.preventDefault();
+                                                        openDay(date);
+                                                    }
+                                                }}
                                                 className={cn(
-                                                    "group relative flex cursor-pointer flex-col gap-1 overflow-hidden border-b border-r border-border/60 p-1.5 transition-colors [&:nth-child(7n)]:border-r-0",
+                                                    "group relative flex cursor-pointer flex-col gap-1 overflow-hidden border-b border-r border-border/60 p-1.5 transition-colors [&:nth-child(7n)]:border-r-0 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
                                                     isLastRow && "border-b-0",
                                                     inMonth ? "hover:bg-muted/40" : "bg-muted/20 hover:bg-muted/30",
                                                     isWeekend && inMonth && "bg-muted/[0.12]",

@@ -8,6 +8,7 @@ import routerProvider, {
 } from "@refinedev/react-router";
 
 import { lazy, Suspense, type ReactNode } from "react";
+import { MotionConfig } from "framer-motion";
 import { BrowserRouter, Navigate, Outlet, Route, Routes } from "react-router";
 import "./App.css";
 import { Toaster } from "./components/refine-ui/notification/toaster";
@@ -73,6 +74,7 @@ const Devtools = import.meta.env.DEV
 function App() {
   return (
     <ErrorBoundary>
+    <MotionConfig reducedMotion="user">
     <BrowserRouter>
       <RefineKbarProvider>
         <ThemeProvider>
@@ -260,6 +262,7 @@ function App() {
         </ThemeProvider>
       </RefineKbarProvider>
     </BrowserRouter>
+    </MotionConfig>
     </ErrorBoundary>
   );
 }
