@@ -4,7 +4,9 @@ import { GraduationCap, Loader2, Download } from "lucide-react";
 import { PDFDownloadLink } from "@react-pdf/renderer";
 import { useDownload } from "@/hooks/use-download.ts";
 
-import { Breadcrumb } from "@/components/layout/breadcrumb.tsx";
+import { PageHeader } from "@/components/layout/page-header.tsx";
+import { EmptyState } from "@/components/ui/empty-state.tsx";
+import { ErrorState } from "@/components/ui/error-state.tsx";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card.tsx";
 import { Badge } from "@/components/ui/badge.tsx";
 import { Button } from "@/components/ui/button.tsx";
@@ -48,7 +50,7 @@ const ReportCard = () => {
   const { data: identity, isLoading: identityLoading } = useGetIdentity<User>();
   const targetStudentId = routeStudentId ?? identity?.id;
 
-  const { data, isLoading: loading } = useApiQuery<{ data: GradeRow[] }>(targetStudentId ? `/grades/student/${targetStudentId}` : null);
+  const { data, isLoading: loading, isError, refetch } = useApiQuery<{ data: GradeRow[] }>(targetStudentId ? `/grades/student/${targetStudentId}` : null);
   const grades = data?.data ?? [];
 
   // Same endpoint works whether targetStudentId is the caller's own id or
@@ -70,19 +72,18 @@ const ReportCard = () => {
 
   return (
     <div className="report-card space-y-6">
-      <div className="print:hidden"><Breadcrumb /></div>
-
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <GraduationCap className="h-7 w-7 text-muted-foreground" />
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Report Card</h1>
-            <p className="text-sm text-muted-foreground">{studentName} · {studentEmail}</p>
-          </div>
-        </div>
-
-        {!loading && studentName && (
-          <div className="print:hidden">
+      <PageHeader
+        className="print:hidden"
+        breadcrumb
+        title={
+          <span className="flex items-center gap-2">
+            <GraduationCap className="h-6 w-6 text-muted-foreground" />
+            Report Card
+          </span>
+        }
+        description={studentName ? `${studentName} · ${studentEmail}` : undefined}
+        actions={
+          !loading && studentName && (
             <PDFDownloadLink
               document={
                 <ReportCardDocument
@@ -98,6 +99,7 @@ const ReportCard = () => {
             >
               {({ loading: pdfLoading }) => (
                 <Button
+                  size="sm"
                   disabled={pdfLoading}
                   onClick={() => !pdfLoading && narrateDownload(pdfFileName)}
                 >
@@ -106,8 +108,15 @@ const ReportCard = () => {
                 </Button>
               )}
             </PDFDownloadLink>
-          </div>
-        )}
+          )
+        }
+      />
+
+      <div className="hidden print:block">
+        <h1 className="text-xl font-bold">Report Card</h1>
+        <p className="text-sm text-muted-foreground">
+          {studentName} · {studentEmail} · Generated {new Date().toLocaleDateString()}
+        </p>
       </div>
 
       {!loading && grades.length > 0 && (
@@ -133,9 +142,21 @@ const ReportCard = () => {
         <CardContent className="p-0">
           {loading ? (
             <div className="space-y-3 p-4">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
+          ) : isError ? (
+            <div className="p-5">
+              <ErrorState
+                title="Can't load this report card"
+                description="The grades may not exist, or you don't have permission to view them."
+                onRetry={refetch}
+              />
+            </div>
           ) : grades.length === 0 ? (
-            <div className="p-10 text-center text-sm text-muted-foreground">
-              No grades recorded yet. Grades appear here once a teacher finalises them.
+            <div className="p-5">
+              <EmptyState
+                icon={GraduationCap}
+                title="No grades recorded yet"
+                description="Grades appear here once a teacher finalises them."
+              />
             </div>
           ) : (
             <Table>

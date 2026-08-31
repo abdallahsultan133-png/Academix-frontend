@@ -1,5 +1,5 @@
 import {ListView} from "@/components/refine-ui/views/list-view.tsx";
-import {Breadcrumb} from "@/components/layout/breadcrumb.tsx";
+import {PageHeader} from "@/components/layout/page-header.tsx";
 import {
     Check, DoorOpen, Loader2, GraduationCap, BookOpen, Users, Gauge,
     CheckCircle2, MoreHorizontal, Eye, Pencil, Trash2, School, X,
@@ -460,14 +460,11 @@ const ClassesList = () => {
 
     return (
         <ListView>
-            <Breadcrumb />
-
-            <div>
-                <h1 className="page-title">Classes</h1>
-                <p className="text-sm text-muted-foreground">
-                    Manage your classes, subjects, and teachers.
-                </p>
-            </div>
+            <PageHeader
+                breadcrumb
+                title="Classes"
+                description="Manage your classes, subjects, and teachers."
+            />
 
             {/* Overview */}
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">

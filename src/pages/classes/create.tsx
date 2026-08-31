@@ -1,5 +1,5 @@
 import {CreateView} from "@/components/refine-ui/views/create-view.tsx";
-import {Breadcrumb} from "@/components/layout/breadcrumb.tsx";
+import {PageHeader} from "@/components/layout/page-header.tsx";
 import {Button} from "@/components/ui/button.tsx";
 import {useBack, useGetIdentity, useList} from "@refinedev/core";
 import {Separator} from "@/components/ui/separator.tsx";
@@ -115,13 +115,12 @@ const Create = () => {
 
     return (
         <CreateView className="class-view">
-            <Breadcrumb />
-
-            <h1 className="page-title">Create a Class</h1>
-            <div className="intro-row">
-                <p>Provide the required information below to add a class.</p>
-                <Button onClick={() => back()}>Go Back</Button>
-            </div>
+            <PageHeader
+                breadcrumb
+                title="Create a Class"
+                description="Provide the required information below to add a class."
+                actions={<Button variant="outline" onClick={() => back()}>Go Back</Button>}
+            />
 
             <Separator />
 

@@ -1,5 +1,5 @@
 import {EditView} from "@/components/refine-ui/views/edit-view.tsx";
-import {Breadcrumb} from "@/components/layout/breadcrumb.tsx";
+import {PageHeader} from "@/components/layout/page-header.tsx";
 import {Button} from "@/components/ui/button.tsx";
 import {useBack, useGetIdentity, useList} from "@refinedev/core";
 import {useParams} from "react-router";
@@ -118,13 +118,12 @@ const Edit = () => {
 
     return (
         <EditView className="class-view">
-            <Breadcrumb />
-
-            <h1 className="page-title">Edit Class</h1>
-            <div className="intro-row">
-                <p>Update the details for this class.</p>
-                <Button onClick={() => back()}>Go Back</Button>
-            </div>
+            <PageHeader
+                breadcrumb
+                title="Edit Class"
+                description="Update the details for this class."
+                actions={<Button variant="outline" onClick={() => back()}>Go Back</Button>}
+            />
 
             <Separator />
 
