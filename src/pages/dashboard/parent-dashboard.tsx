@@ -1,7 +1,5 @@
 import { Link } from "react-router";
-import { GraduationCap, ClipboardCheck, ChevronRight, Users } from "lucide-react";
-import { motion } from "framer-motion";
-import { useGetIdentity } from "@refinedev/core";
+import { GraduationCap, ClipboardCheck, ChevronRight, Users, ShieldCheck } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card.tsx";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar.tsx";
 import { Badge } from "@/components/ui/badge.tsx";
@@ -11,8 +9,9 @@ import { EmptyState } from "@/components/ui/empty-state.tsx";
 import { ErrorState } from "@/components/ui/error-state.tsx";
 import { UpcomingEvents } from "@/components/dashboard/upcoming-events";
 import { RecentActivity } from "@/components/dashboard/recent-activity";
+import { DashboardGreeting } from "@/components/dashboard/dashboard-greeting";
+import { ActionQueue, type ActionQueueItem } from "@/components/dashboard/action-queue";
 import { useApiQuery } from "@/hooks/use-api-query.ts";
-import type { User } from "@/types";
 
 type Child = {
     id: string; name: string; email: string; image: string | null;
@@ -24,25 +23,56 @@ type Child = {
 
 const getInitials = (name = "") => name.trim().split(" ").filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join("");
 
+// Flags derived purely from data already loaded via /profile/my-children — no
+// extra request, nothing inferred beyond "attendance below 75%" and "a failing
+// grade is on record".
+function attentionItems(children: Child[]): ActionQueueItem[] {
+    const items: ActionQueueItem[] = [];
+    for (const child of children) {
+        const rate = child.attendanceSummary.rate;
+        if (rate !== null && rate < 75) {
+            items.push({
+                id: `att-${child.id}`,
+                icon: ClipboardCheck,
+                title: `${child.name} — attendance ${rate}%`,
+                meta: "Below 75% over recorded sessions",
+                href: `/students/${child.id}`,
+                badge: { label: "Attendance", tone: "warning" },
+            });
+        }
+        const failing = child.grades.filter((g) => g.letterGrade === "F").length;
+        if (failing > 0) {
+            items.push({
+                id: `grade-${child.id}`,
+                icon: GraduationCap,
+                title: `${child.name} — failing grade recorded`,
+                meta: `${failing} class${failing === 1 ? "" : "es"} at F`,
+                href: `/students/${child.id}`,
+                badge: { label: "Grades", tone: "critical" },
+            });
+        }
+    }
+    return items;
+}
+
 const ParentDashboard = () => {
-    const { data: identity } = useGetIdentity<User>();
     const { data, isLoading, isError, refetch } = useApiQuery<{ data: Child[] }>("/profile/my-children");
     const children = data?.data ?? [];
 
     return (
         <div className="space-y-6">
-            <motion.div
-                initial={{ opacity: 0, y: -8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.35, ease: "easeOut" }}
-            >
-                <h1 className="font-display text-3xl font-bold tracking-tight">
-                    Welcome back{identity?.name ? `, ${identity.name.split(" ")[0]}` : ""}
-                </h1>
-                <p className="text-muted-foreground">
-                    Academic progress for your children, at a glance.
-                </p>
-            </motion.div>
+            <DashboardGreeting subtitle="How your children are doing and what needs your attention." />
+
+            {!isLoading && !isError && children.length > 0 && (
+                <ActionQueue
+                    title="Needs attention"
+                    icon={ShieldCheck}
+                    items={attentionItems(children)}
+                    emptyIcon={ShieldCheck}
+                    emptyTitle="Nothing flagged"
+                    emptyDescription="Attendance and grades for your children look on track."
+                />
+            )}
 
             {isLoading ? (
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">

@@ -19,6 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch.tsx";
 import { Badge } from "@/components/ui/badge.tsx";
 import { Skeleton } from "@/components/ui/skeleton.tsx";
+import { ErrorState } from "@/components/ui/error-state.tsx";
 import {
     Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog.tsx";
@@ -192,7 +193,7 @@ const CalendarPage = () => {
     const isCurrentMonth = month === today.getMonth() && year === today.getFullYear();
 
     const calendarPath = `/calendar?from=${isoDate(gridStart)}&to=${isoDate(gridEnd)}`;
-    const { data, isFetching, isLoading } = useApiQuery<{ data: CalendarEvent[] }>(calendarPath, {
+    const { data, isFetching, isLoading, isError, refetch } = useApiQuery<{ data: CalendarEvent[] }>(calendarPath, {
         placeholderData: keepPreviousData,
     });
     const allEvents = data?.data ?? [];
@@ -510,7 +511,15 @@ const CalendarPage = () => {
 
                     {/* Calendar cells */}
                     <div className="overflow-hidden">
-                        {firstLoad ? (
+                        {isError && !data ? (
+                            <div className="p-6">
+                                <ErrorState
+                                    title="Couldn't load the calendar"
+                                    description="We couldn't reach the schedule. Check your connection and try again."
+                                    onRetry={refetch}
+                                />
+                            </div>
+                        ) : firstLoad ? (
                             <div className="grid grid-cols-7" style={rowStyle}>
                                 {Array.from({ length: totalCells }).map((_, i) => (
                                     <div key={i} className="space-y-1.5 border-b border-r border-border/60 p-1.5 [&:nth-child(7n)]:border-r-0">

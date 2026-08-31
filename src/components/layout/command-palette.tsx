@@ -1,5 +1,6 @@
 import * as React from "react";
 import { useRefineKbar } from "@refinedev/kbar";
+import { useGetIdentity } from "@refinedev/core";
 import {
     KBarPortal,
     KBarPositioner,
@@ -12,6 +13,10 @@ import {
 } from "kbar";
 import { ArrowRight, ChevronRight, CornerDownLeft, Search } from "lucide-react";
 import { cn } from "@/lib/utils.ts";
+import { APP_NAME } from "@/constants";
+import { isStaff } from "@/lib/roles.ts";
+import type { User } from "@/types";
+import { CommandSearchActions } from "./command-search-actions.tsx";
 
 /**
  * Fully custom-styled replacement for @refinedev/kbar's default <RefineKbar />.
@@ -21,15 +26,21 @@ import { cn } from "@/lib/utils.ts";
  */
 export function CommandPalette() {
     useRefineKbar();
+    const { data: identity } = useGetIdentity<User>();
+    const placeholder = isStaff(identity?.role)
+        ? "Search classes, students, and pages…"
+        : "Search classes and pages…";
 
     return (
+        <>
+        <CommandSearchActions />
         <KBarPortal>
             <KBarPositioner className="z-50 bg-black/50 backdrop-blur-sm animate-in fade-in-0 duration-150">
                 <KBarAnimator className="w-full max-w-xl overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-2xl animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-200">
                     <div className="flex items-center gap-3 border-b border-border px-4">
                         <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
                         <KBarSearch
-                            defaultPlaceholder="Search classes, students, grades, and more..."
+                            defaultPlaceholder={placeholder}
                             className="h-14 w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
                         />
                         <kbd className="hidden shrink-0 rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px] font-medium text-muted-foreground sm:inline-block">
@@ -53,11 +64,12 @@ export function CommandPalette() {
                                 Select
                             </span>
                         </div>
-                        <span className="font-medium">Academix</span>
+                        <span className="font-medium">{APP_NAME}</span>
                     </div>
                 </KBarAnimator>
             </KBarPositioner>
         </KBarPortal>
+        </>
     );
 }
 

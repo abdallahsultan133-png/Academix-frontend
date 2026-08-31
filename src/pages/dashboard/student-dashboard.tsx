@@ -6,15 +6,16 @@ import {
     BarChart3,
     Megaphone,
 } from "lucide-react";
-import { motion } from "framer-motion";
 import { useGetIdentity } from "@refinedev/core";
 import { AttendanceOverviewChart } from "@/components/dashboard/attendance-overview-chart";
 import { PerformanceChart } from "@/components/dashboard/performance-chart";
 import { ClassActivityChart } from "@/components/dashboard/class-activity-chart";
-import { UpcomingEvents } from "@/components/dashboard/upcoming-events";
 import { RecentActivity } from "@/components/dashboard/recent-activity";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { QuickActions, type QuickAction } from "@/components/dashboard/quick-actions";
+import { DashboardGreeting } from "@/components/dashboard/dashboard-greeting";
+import { UpcomingAssignments } from "@/components/dashboard/upcoming-assignments";
+import { RecentResults } from "@/components/dashboard/recent-results";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useApiQuery } from "@/hooks/use-api-query.ts";
 import type { User } from "@/types";
@@ -50,10 +51,16 @@ const StudentDashboard = () => {
         : null;
 
     const hasAttendanceRate = stats?.attendanceRate !== null && stats?.attendanceRate !== undefined;
+    const pending = stats?.pendingAssignments ?? 0;
 
     const statCards = [
-        { title: "My Classes", value: stats?.classes ?? 0, icon: Building2, color: "purple" as const, description: "Currently enrolled" },
-        { title: "Pending Assignments", value: stats?.pendingAssignments ?? 0, icon: FileText, color: (stats?.pendingAssignments ? "amber" : "green") as "amber" | "green", description: "Awaiting your submission" },
+        {
+            title: "Assignments Due",
+            value: pending,
+            icon: FileText,
+            color: (pending > 0 ? "amber" : "green") as "amber" | "green",
+            description: pending > 0 ? "Not yet submitted" : "Nothing outstanding",
+        },
         {
             title: "Attendance (30d)",
             value: hasAttendanceRate ? `${stats!.attendanceRate}%` : "—",
@@ -64,22 +71,12 @@ const StudentDashboard = () => {
             trendValue: stats?.trends.attendanceRate,
         },
         { title: "GPA", value: avgGPA ?? "—", icon: GraduationCap, color: "blue" as const, description: "Average across your classes" },
+        { title: "My Classes", value: stats?.classes ?? 0, icon: Building2, color: "purple" as const, description: "Currently enrolled" },
     ];
 
     return (
         <div className="space-y-6">
-            <motion.div
-                initial={{ opacity: 0, y: -8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.35, ease: "easeOut" }}
-            >
-                <h1 className="font-display text-3xl font-bold tracking-tight">
-                    Welcome back{identity?.name ? `, ${identity.name.split(" ")[0]}` : ""}
-                </h1>
-                <p className="text-muted-foreground">
-                    Here's how you're doing this term.
-                </p>
-            </motion.div>
+            <DashboardGreeting subtitle="What's due, your latest results, and how you're tracking." />
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 {isLoading ? (
@@ -103,9 +100,14 @@ const StudentDashboard = () => {
                 )}
             </div>
 
-            {/* Personal analytics — every endpoint below is scoped to this
-                student server-side (own attendance, own class grades, own
-                enrolled classes). */}
+            {/* Every endpoint below is scoped to this student server-side. */}
+            <div className="grid gap-4 lg:grid-cols-3">
+                <div className="lg:col-span-2">
+                    <UpcomingAssignments personal />
+                </div>
+                <RecentResults />
+            </div>
+
             <div className="grid gap-4 lg:grid-cols-2">
                 <AttendanceOverviewChart personal />
                 <PerformanceChart personal />
@@ -118,10 +120,7 @@ const StudentDashboard = () => {
                 <RecentActivity />
             </div>
 
-            <div className="grid gap-4 lg:grid-cols-2">
-                <UpcomingEvents />
-                <QuickActions actions={QUICK_ACTIONS} description="Get to your classwork faster." />
-            </div>
+            <QuickActions actions={QUICK_ACTIONS} description="Get to your classwork faster." />
         </div>
     );
 };

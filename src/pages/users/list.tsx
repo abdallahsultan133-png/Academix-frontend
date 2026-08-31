@@ -5,7 +5,7 @@ import { Navigate } from "react-router";
 import { toast } from "sonner";
 import { Check, Copy, Download, KeyRound, Loader2, Mail, MoreHorizontal, ShieldAlert, Trash2 } from "lucide-react";
 
-import { Breadcrumb } from "@/components/layout/breadcrumb.tsx";
+import { PageHeader } from "@/components/layout/page-header.tsx";
 import { Card } from "@/components/ui/card.tsx";
 import { SearchInput } from "@/components/ui/search-input.tsx";
 import { Button } from "@/components/ui/button.tsx";
@@ -196,22 +196,21 @@ const UsersList = () => {
 
   return (
     <div className="users-list space-y-6">
-      <Breadcrumb />
-
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Manage Users</h1>
-          <p className="text-sm text-muted-foreground">Search users and change their role.</p>
-        </div>
-        {users.length > 0 && (
-          <Button variant="outline" size="sm" onClick={handleExportCsv}>
-            <Download className="mr-1.5 h-4 w-4" /> Export CSV
-          </Button>
-        )}
-      </div>
+      <PageHeader
+        breadcrumb
+        title="Manage Users"
+        description="Search users and change their role."
+        actions={
+          users.length > 0 && (
+            <Button variant="outline" size="sm" onClick={handleExportCsv}>
+              <Download className="mr-1.5 h-4 w-4" /> Export CSV
+            </Button>
+          )
+        }
+      />
 
       {!isSuperAdmin && (
-        <div className="flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
+        <div className="flex items-center gap-2 rounded-md border border-blue-500/30 bg-blue-500/10 p-3 text-sm text-blue-700 dark:text-blue-300">
           <ShieldAlert className="h-4 w-4 shrink-0" />
           Only a super admin can grant admin-level roles. You can manage student/teacher/parent roles.
         </div>

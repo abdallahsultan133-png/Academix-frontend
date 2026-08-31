@@ -1,25 +1,26 @@
 import {
     Users,
     Building2,
-    BookOpen,
     ClipboardCheck,
     CheckCircle2,
     FileText,
     Megaphone,
     BarChart3,
     Sparkles,
+    ClipboardList,
 } from "lucide-react";
-import { motion } from "framer-motion";
-import { useGetIdentity } from "@refinedev/core";
 import { AttendanceOverviewChart } from "@/components/dashboard/attendance-overview-chart";
 import { PerformanceChart } from "@/components/dashboard/performance-chart";
+import { ClassActivityChart } from "@/components/dashboard/class-activity-chart";
 import { UpcomingEvents } from "@/components/dashboard/upcoming-events";
 import { RecentActivity } from "@/components/dashboard/recent-activity";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { QuickActions, type QuickAction } from "@/components/dashboard/quick-actions";
+import { DashboardGreeting } from "@/components/dashboard/dashboard-greeting";
+import { UpcomingAssignments } from "@/components/dashboard/upcoming-assignments";
+import { ClassListPanel } from "@/components/dashboard/class-list-panel";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useApiQuery } from "@/hooks/use-api-query.ts";
-import type { User } from "@/types";
 
 type TeacherStats = {
     students: number;
@@ -44,21 +45,20 @@ const QUICK_ACTIONS: QuickAction[] = [
 ];
 
 const TeacherDashboard = () => {
-    const { data: identity } = useGetIdentity<User>();
     const { data: stats, isLoading } = useApiQuery<TeacherStats>("/dashboard/stats");
 
     const hasAttendanceRate = stats?.attendanceRate !== null && stats?.attendanceRate !== undefined;
     const hasCompletionRate = stats?.assignmentCompletionRate !== null && stats?.assignmentCompletionRate !== undefined;
+    const pendingGrading = stats?.pendingGrading ?? 0;
 
     const statCards = [
-        { title: "My Students", value: stats?.students ?? 0, icon: Users, color: "blue" as const, description: "Enrolled in your classes" },
         { title: "My Classes", value: stats?.classes ?? 0, icon: Building2, color: "purple" as const, description: "You teach", trendValue: stats?.trends.classes },
-        { title: "My Subjects", value: stats?.subjects ?? 0, icon: BookOpen, color: "green" as const, description: "Across your classes", trendValue: stats?.trends.subjects },
+        { title: "My Students", value: stats?.students ?? 0, icon: Users, color: "blue" as const, description: "Enrolled in your classes" },
         {
             title: "Assignment Completion",
             value: hasCompletionRate ? `${stats!.assignmentCompletionRate}%` : "—",
             icon: CheckCircle2,
-            color: "amber" as const,
+            color: "green" as const,
             description: "Submitted vs. expected",
             percent: hasCompletionRate ? stats!.assignmentCompletionRate! : undefined,
         },
@@ -71,22 +71,18 @@ const TeacherDashboard = () => {
             percent: hasAttendanceRate ? stats!.attendanceRate! : undefined,
             trendValue: stats?.trends.attendanceRate,
         },
+        {
+            title: "Awaiting Grading",
+            value: pendingGrading,
+            icon: ClipboardList,
+            color: (pendingGrading > 0 ? "red" : "green") as "red" | "green",
+            description: pendingGrading > 0 ? "Submissions to review" : "You're all caught up",
+        },
     ];
 
     return (
         <div className="space-y-6">
-            <motion.div
-                initial={{ opacity: 0, y: -8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.35, ease: "easeOut" }}
-            >
-                <h1 className="font-display text-3xl font-bold tracking-tight">
-                    Welcome back{identity?.name ? `, ${identity.name.split(" ")[0]}` : ""}
-                </h1>
-                <p className="text-muted-foreground">
-                    Here's how your classes are doing.
-                </p>
-            </motion.div>
+            <DashboardGreeting subtitle="Your classes, your grading queue, and what's due." />
 
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
                 {isLoading ? (
@@ -104,10 +100,17 @@ const TeacherDashboard = () => {
                             description={item.description}
                             index={index}
                             percent={"percent" in item ? item.percent : undefined}
-                            trendValue={item.trendValue}
+                            trendValue={"trendValue" in item ? item.trendValue : undefined}
                         />
                     ))
                 )}
+            </div>
+
+            <div className="grid gap-4 lg:grid-cols-3">
+                <div className="lg:col-span-2">
+                    <UpcomingAssignments />
+                </div>
+                <ClassListPanel />
             </div>
 
             <div className="grid gap-4 lg:grid-cols-2">
@@ -115,20 +118,25 @@ const TeacherDashboard = () => {
                 <PerformanceChart showClassRanking />
             </div>
 
-            <div className="grid gap-4 lg:grid-cols-2">
+            <div className="grid gap-4 lg:grid-cols-3">
+                <div className="lg:col-span-2">
+                    <ClassActivityChart />
+                </div>
                 <RecentActivity />
-                <UpcomingEvents />
             </div>
 
-            <QuickActions
-                actions={QUICK_ACTIONS}
-                description="Mark attendance, create assignments, and keep your classes moving."
-                highlight={
-                    !isLoading && stats && stats.pendingGrading > 0
-                        ? { message: `${stats.pendingGrading} submission${stats.pendingGrading === 1 ? "" : "s"} waiting to be graded`, href: "/assignments" }
-                        : undefined
-                }
-            />
+            <div className="grid gap-4 lg:grid-cols-2">
+                <UpcomingEvents />
+                <QuickActions
+                    actions={QUICK_ACTIONS}
+                    description="Mark attendance, create assignments, and keep your classes moving."
+                    highlight={
+                        !isLoading && pendingGrading > 0
+                            ? { message: `${pendingGrading} submission${pendingGrading === 1 ? "" : "s"} waiting to be graded`, href: "/assignments" }
+                            : undefined
+                    }
+                />
+            </div>
         </div>
     );
 };

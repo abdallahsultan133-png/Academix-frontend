@@ -5,7 +5,6 @@ import * as React from "react";
 import {
   useGetIdentity,
   useLink,
-  useLogout,
   useRefineOptions,
 } from "@refinedev/core";
 import { useKBar } from "kbar";
@@ -21,14 +20,13 @@ import {
   GraduationCap,
   HeartHandshake,
   LayoutDashboard,
-  LogOut,
+  LineChart,
   Megaphone,
   MessagesSquare,
   PanelLeftClose,
   ScrollText,
   Search,
   Sparkles,
-  User as UserIcon,
   UserCheck,
   Users,
   X,
@@ -48,18 +46,13 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu.tsx";
 import { useApiQuery } from "@/hooks/use-api-query.ts";
 import { cn } from "@/lib/utils.ts";
+import { APP_NAME, APP_TAGLINE } from "@/constants";
+import { ROLE_LABEL, STAFF_ROLES, ADMIN_ROLES } from "@/lib/roles";
 import { UserRole, type User } from "@/types";
 import { UserAvatar } from "./user-avatar";
+import { AccountMenu } from "./account-menu";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Navigation manifest
@@ -72,9 +65,6 @@ import { UserAvatar } from "./user-avatar";
 // one with the SAME role list as its <RequireRole> wrapper. It grants nothing:
 // route guards remain the single source of truth for access.
 // ─────────────────────────────────────────────────────────────────────────────
-
-const STAFF_ROLES = [UserRole.TEACHER, UserRole.ADMIN, UserRole.SUPER_ADMIN];
-const ADMIN_ROLES = [UserRole.ADMIN, UserRole.SUPER_ADMIN];
 
 type NavItem = {
   label: string;
@@ -139,6 +129,12 @@ const NAV: NavGroup[] = [
         icon: BarChart3,
         labelByRole: { [UserRole.STUDENT]: "My Grades" },
       },
+      {
+        label: "Insights",
+        to: "/insights",
+        icon: LineChart,
+        roles: [UserRole.STUDENT, ...STAFF_ROLES],
+      },
       { label: "Calendar", to: "/calendar", icon: CalendarDays },
     ],
   },
@@ -157,14 +153,6 @@ const NAV: NavGroup[] = [
     ],
   },
 ];
-
-const ROLE_LABELS: Record<UserRole, string> = {
-  [UserRole.ADMIN]: "Administrator",
-  [UserRole.SUPER_ADMIN]: "Administrator",
-  [UserRole.TEACHER]: "Teacher",
-  [UserRole.STUDENT]: "Student",
-  [UserRole.PARENT]: "Parent",
-};
 
 function useNavGroups(role?: UserRole): NavGroup[] {
   return React.useMemo(() => {
@@ -385,9 +373,9 @@ function BrandHeader() {
           {mark}
           <div className="min-w-0 flex-1 leading-none">
             <p className="truncate text-[13px] font-semibold tracking-tight text-sidebar-foreground">
-              Classroom
+              {APP_NAME}
             </p>
-            <p className="truncate text-[11px] text-muted-foreground">Management</p>
+            <p className="truncate text-[11px] text-muted-foreground">{APP_TAGLINE}</p>
           </div>
 
           {isMobile ? (
@@ -479,81 +467,46 @@ function SidebarSearch() {
 
 // ── Account ──────────────────────────────────────────────────────────────────
 function AccountFooter({ role }: { role?: UserRole }) {
-  const Link = useLink();
   const { open, isMobile, setOpenMobile } = useShadcnSidebar();
   const collapsed = !open && !isMobile;
   const { data: user } = useGetIdentity<User>();
-  const { mutate: logout, isPending } = useLogout();
-
-  const closeMobile = () => {
-    if (isMobile) setOpenMobile(false);
-  };
 
   return (
     <ShadcnSidebarFooter className="border-t border-sidebar-border bg-sidebar p-2.5">
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <button
-            type="button"
-            aria-label="Account menu"
-            className={cn(
-              "flex w-full items-center gap-2.5 rounded-lg text-left outline-none",
-              "transition-colors hover:bg-sidebar-accent/60 focus-visible:ring-2 focus-visible:ring-sidebar-ring",
-              "data-[state=open]:bg-sidebar-accent",
-              collapsed ? "justify-center p-1" : "p-1.5",
-            )}
-          >
-            <UserAvatar className={cn("rounded-lg", collapsed ? "h-8 w-8" : "h-8 w-8")} />
-            {!collapsed && (
-              <>
-                <span className="min-w-0 flex-1 leading-tight">
-                  <span className="block truncate text-[13px] font-medium text-sidebar-foreground">
-                    {user?.name ?? "Account"}
-                  </span>
-                  <span className="block truncate text-[11px] text-muted-foreground">
-                    {role ? ROLE_LABELS[role] : user?.email}
-                  </span>
-                </span>
-                <ChevronsUpDown className="h-4 w-4 shrink-0 text-muted-foreground" />
-              </>
-            )}
-          </button>
-        </DropdownMenuTrigger>
-
-        <DropdownMenuContent
-          side={collapsed ? "right" : "top"}
-          align={collapsed ? "end" : "start"}
-          sideOffset={8}
-          className="w-[--radix-dropdown-menu-trigger-width] min-w-56"
+      <AccountMenu
+        side={collapsed ? "right" : "top"}
+        align={collapsed ? "end" : "start"}
+        contentClassName="w-[--radix-dropdown-menu-trigger-width]"
+        onNavigate={() => {
+          if (isMobile) setOpenMobile(false);
+        }}
+      >
+        <button
+          type="button"
+          aria-label="Account menu"
+          className={cn(
+            "flex w-full items-center gap-2.5 rounded-lg text-left outline-none",
+            "transition-colors hover:bg-sidebar-accent/60 focus-visible:ring-2 focus-visible:ring-sidebar-ring",
+            "data-[state=open]:bg-sidebar-accent",
+            collapsed ? "justify-center p-1" : "p-1.5",
+          )}
         >
-          <DropdownMenuLabel className="flex items-center gap-2.5 py-2">
-            <UserAvatar className="h-8 w-8 rounded-lg" />
-            <span className="min-w-0 leading-tight">
-              <span className="block truncate text-[13px] font-medium">{user?.name ?? "Account"}</span>
-              {user?.email && (
-                <span className="block truncate text-[11px] font-normal text-muted-foreground">
-                  {user.email}
+          <UserAvatar className="h-8 w-8 rounded-lg" />
+          {!collapsed && (
+            <>
+              <span className="min-w-0 flex-1 leading-tight">
+                <span className="block truncate text-[13px] font-medium text-sidebar-foreground">
+                  {user?.name ?? "Account"}
                 </span>
-              )}
-            </span>
-          </DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem asChild>
-            <Link to="/profile" onClick={closeMobile} className="flex cursor-pointer items-center gap-2">
-              <UserIcon className="h-4 w-4" />
-              Profile &amp; Settings
-            </Link>
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            onClick={() => logout()}
-            className="text-destructive focus:text-destructive"
-          >
-            <LogOut className="h-4 w-4 text-destructive" />
-            {isPending ? "Logging out…" : "Log out"}
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+                <span className="block truncate text-[11px] text-muted-foreground">
+                  {role ? ROLE_LABEL[role] : user?.email}
+                </span>
+              </span>
+              <ChevronsUpDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+            </>
+          )}
+        </button>
+      </AccountMenu>
     </ShadcnSidebarFooter>
   );
 }

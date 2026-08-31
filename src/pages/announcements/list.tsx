@@ -1,15 +1,17 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router";
 import { useGetIdentity } from "@refinedev/core";
 import { toast } from "sonner";
 import { Megaphone, Pin, Plus, Trash2 } from "lucide-react";
 
-import { Breadcrumb } from "@/components/layout/breadcrumb.tsx";
+import { PageHeader } from "@/components/layout/page-header.tsx";
 import { Card } from "@/components/ui/card.tsx";
 import { Button } from "@/components/ui/button.tsx";
-import { Badge } from "@/components/ui/badge.tsx";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar.tsx";
 import { Skeleton } from "@/components/ui/skeleton.tsx";
+import { EmptyState } from "@/components/ui/empty-state.tsx";
+import { ErrorState } from "@/components/ui/error-state.tsx";
+import { StatusBadge } from "@/components/ui/status-badge.tsx";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,6 +24,9 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog.tsx";
 import { BACKEND_BASE_URL } from "@/constants";
+import { useApiQuery } from "@/hooks/use-api-query.ts";
+import { timeAgo } from "@/lib/time.ts";
+import { cn } from "@/lib/utils.ts";
 import type { User } from "@/types";
 
 type AnnouncementItem = {
@@ -36,47 +41,21 @@ type AnnouncementItem = {
 
 const getInitials = (name = "") => name.trim().split(" ").filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join("");
 
-const timeAgo = (iso: string) => {
-  const diffMs = Date.now() - new Date(iso).getTime();
-  const mins = Math.floor(diffMs / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 7) return `${days}d ago`;
-  return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
-};
-
 const AnnouncementsList = () => {
   const { data: identity } = useGetIdentity<User>();
   const isTeacherOrAdmin = identity?.role === "teacher" || identity?.role === "admin" || identity?.role === "super_admin";
 
-  const [items, setItems] = useState<AnnouncementItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data, isLoading, isError, refetch } = useApiQuery<{ data: AnnouncementItem[] }>("/announcements");
+  const items = data?.data ?? [];
   const [deletingId, setDeletingId] = useState<number | null>(null);
-
-  const load = () => {
-    setLoading(true);
-    fetch(`${BACKEND_BASE_URL}/announcements`, { credentials: "include" })
-      .then(async (res) => {
-        if (!res.ok) throw new Error((await res.json())?.message ?? "Failed to load announcements");
-        return res.json();
-      })
-      .then((json: { data: AnnouncementItem[] }) => setItems(json.data))
-      .catch((e) => toast.error(e.message ?? "Failed to load announcements"))
-      .finally(() => setLoading(false));
-  };
-
-  useEffect(load, []);
 
   const handleDelete = async (id: number) => {
     setDeletingId(id);
     try {
       const res = await fetch(`${BACKEND_BASE_URL}/announcements/${id}`, { method: "DELETE", credentials: "include" });
       if (!res.ok) throw new Error((await res.json())?.message ?? "Failed to delete");
-      setItems((prev) => prev.filter((i) => i.id !== id));
       toast.success("Announcement deleted.");
+      await refetch();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to delete announcement");
     } finally {
@@ -86,35 +65,49 @@ const AnnouncementsList = () => {
 
   return (
     <div className="announcements-list space-y-6">
-      <Breadcrumb />
+      <PageHeader
+        breadcrumb
+        title="Announcements"
+        description="School-wide and class updates, pinned first."
+        actions={
+          isTeacherOrAdmin && (
+            <Button asChild>
+              <Link to="/announcements/create">
+                <Plus className="mr-1.5 h-4 w-4" />
+                New Announcement
+              </Link>
+            </Button>
+          )
+        }
+      />
 
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Announcements</h1>
-          <p className="text-sm text-muted-foreground">School-wide and class updates, newest first.</p>
+      {isLoading ? (
+        <div className="space-y-4">
+          {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-28 w-full rounded-xl" />)}
         </div>
-
-        {isTeacherOrAdmin && (
-          <Button asChild>
-            <Link to="/announcements/create">
-              <Plus className="mr-1.5 h-4 w-4" />
-              New Announcement
-            </Link>
-          </Button>
-        )}
-      </div>
-
-      <div className="space-y-4">
-        {loading ? (
-          Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-28 w-full rounded-xl" />)
-        ) : items.length === 0 ? (
-          <Card className="p-10 text-center text-sm text-muted-foreground">
-            <Megaphone className="mx-auto mb-2 h-6 w-6 text-muted-foreground" />
-            No announcements yet.
-          </Card>
-        ) : (
-          items.map((a) => (
-            <Card key={a.id} className={a.pinned ? "border-amber-300 bg-amber-50/40 p-5" : "p-5"}>
+      ) : isError ? (
+        <ErrorState description="Couldn't load announcements." onRetry={refetch} />
+      ) : items.length === 0 ? (
+        <EmptyState
+          icon={Megaphone}
+          title="No announcements yet"
+          description={
+            isTeacherOrAdmin
+              ? "Post an update to reach a class or the whole school."
+              : "Updates from your teachers and school will show up here."
+          }
+          action={isTeacherOrAdmin ? { label: "New announcement", to: "/announcements/create" } : undefined}
+        />
+      ) : (
+        <div className="space-y-4">
+          {items.map((a) => (
+            <Card
+              key={a.id}
+              className={cn(
+                "p-5",
+                a.pinned && "border-amber-500/40 bg-amber-500/5",
+              )}
+            >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-3">
                   <Avatar className="h-9 w-9">
@@ -122,9 +115,13 @@ const AnnouncementsList = () => {
                     <AvatarFallback>{getInitials(a.author.name)}</AvatarFallback>
                   </Avatar>
                   <div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <h3 className="font-semibold leading-snug">{a.title}</h3>
-                      {a.pinned && <Pin className="h-3.5 w-3.5 text-amber-600" />}
+                      {a.pinned && (
+                        <StatusBadge tone="warning" icon={<Pin className="h-3 w-3" />}>
+                          Pinned
+                        </StatusBadge>
+                      )}
                     </div>
                     <p className="text-xs text-muted-foreground">
                       {a.author.name} · {a.class ? a.class.name : "School-wide"} · {timeAgo(a.createdAt)}
@@ -132,7 +129,7 @@ const AnnouncementsList = () => {
                   </div>
                 </div>
 
-                {isTeacherOrAdmin && (a.author.id === identity?.id || identity?.role === "admin") && (
+                {isTeacherOrAdmin && (a.author.id === identity?.id || identity?.role === "admin" || identity?.role === "super_admin") && (
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button variant="ghost" size="icon" aria-label={`Delete announcement: ${a.title}`} disabled={deletingId === a.id}>
@@ -154,12 +151,10 @@ const AnnouncementsList = () => {
               </div>
 
               <p className="mt-3 whitespace-pre-wrap text-sm text-muted-foreground">{a.content}</p>
-
-              {a.class && <Badge variant="outline" className="mt-3">{a.class.name}</Badge>}
             </Card>
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

@@ -7,7 +7,7 @@ import { Camera, Loader2, Trash2 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { CLOUDINARY_API_KEY, CLOUDINARY_CLOUD_NAME, BACKEND_BASE_URL } from "@/constants";
-import { signUploadParams } from "@/lib/cloudinary.ts";
+import { applyAvatarCrop, signUploadParams } from "@/lib/cloudinary.ts";
 import type { User } from "@/types";
 
 const getInitials = (name = "") =>
@@ -21,9 +21,11 @@ const IDENTITY_QUERY_KEY = ["auth", "identity"];
 
 /**
  * Display-photo control for Profile & Settings. Opens the Cloudinary upload
- * widget (square crop), persists the resulting URL to the user's account via
- * PUT /profile/me/photo, then refreshes the cached identity so the new photo
- * replaces the initials avatar everywhere. "Remove" clears it back to initials.
+ * widget (square crop), bakes the crop the user drew into the delivery URL
+ * (the widget otherwise returns the full, uncropped image), persists that URL
+ * to the user's account via PUT /profile/me/photo, then refreshes the cached
+ * identity so the new photo replaces the initials avatar everywhere. "Remove"
+ * clears it back to initials.
  */
 export function AvatarUploader() {
   const { data: identity } = useGetIdentity<User>();
@@ -84,7 +86,11 @@ export function AvatarUploader() {
         },
         (error, result) => {
           if (!error && result.event === "success") {
-            void saveRef.current(result.info.secure_url, result.info.public_id);
+            const cropBox = result.info.coordinates?.custom?.[0];
+            void saveRef.current(
+              applyAvatarCrop(result.info.secure_url, cropBox),
+              result.info.public_id,
+            );
           }
         },
       );

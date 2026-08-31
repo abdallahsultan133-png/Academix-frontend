@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import { useList } from "@refinedev/core";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
-import { Breadcrumb } from "@/components/layout/breadcrumb.tsx";
+import { PageHeader } from "@/components/layout/page-header.tsx";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { Input } from "@/components/ui/input.tsx";
@@ -22,7 +22,9 @@ const AssignmentsCreate = () => {
   const { query: classesQuery } = useList<ClassDetails>({ resource: "classes", pagination: { pageSize: 100 } });
   const classes = classesQuery?.data?.data ?? [];
 
-  const [classId, setClassId] = useState("");
+  // Prefill the class when arriving from a class workspace (…/create?classId=5).
+  const [searchParams] = useSearchParams();
+  const [classId, setClassId] = useState(searchParams.get("classId") ?? "");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [dueAt, setDueAt] = useState("");
@@ -68,12 +70,11 @@ const AssignmentsCreate = () => {
 
   return (
     <div className="assignments-create space-y-6">
-      <Breadcrumb />
-
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">New Assignment</h1>
-        <p className="text-sm text-muted-foreground">Give it a title, a due date, and optionally attach a file.</p>
-      </div>
+      <PageHeader
+        breadcrumb
+        title="New Assignment"
+        description="Give it a title, a due date, and optionally attach a file."
+      />
 
       <Card className="max-w-2xl">
         <CardHeader>

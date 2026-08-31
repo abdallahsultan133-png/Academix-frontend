@@ -1,5 +1,5 @@
 import {ListView} from "@/components/refine-ui/views/list-view.tsx";
-import {Breadcrumb} from "@/components/layout/breadcrumb.tsx";
+import {PageHeader} from "@/components/layout/page-header.tsx";
 import {SearchInput} from "@/components/ui/search-input.tsx";
 import {useMemo, useState} from "react";
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select.tsx";
@@ -97,35 +97,26 @@ const SubjectsList = () => {
 
     return (
         <ListView>
-            <Breadcrumb />
-
-            <h1 className="page-title">Subjects</h1>
-
-            <div className="intro-row">
-                <p>Quick access to essential metrics and management tools.</p>
-
-                <div className="actions-row">
-                    <SearchInput
-                        placeholder="Search by name..."
-                        aria-label="Search subjects by name"
-                        containerClassName="md:max-w-72"
-                        value={searchQuery}
-                        onChange={setSearchQuery}
-                        loading={subjectTable.refineCore.tableQuery.isFetching}
-                    />
-
-                    <div className="flex gap-2 w-full sm:w-auto">
-                        <Select
-                            value={selectedDepartment} onValueChange={setSelectedDepartment}
-                        >
-                            <SelectTrigger>
+            <PageHeader
+                breadcrumb
+                title="Subjects"
+                description="Browse subjects, filter by department, and manage the catalogue."
+                actions={
+                    <>
+                        <SearchInput
+                            placeholder="Search by name..."
+                            aria-label="Search subjects by name"
+                            containerClassName="w-full sm:max-w-56"
+                            value={searchQuery}
+                            onChange={setSearchQuery}
+                            loading={subjectTable.refineCore.tableQuery.isFetching}
+                        />
+                        <Select value={selectedDepartment} onValueChange={setSelectedDepartment}>
+                            <SelectTrigger className="w-full sm:w-[180px]">
                                 <SelectValue placeholder="Filter by department" />
                             </SelectTrigger>
-
                             <SelectContent>
-                                <SelectItem value="all">
-                                    All Departments
-                                </SelectItem>
+                                <SelectItem value="all">All Departments</SelectItem>
                                 {DEPARTMENT_OPTIONS.map(department => (
                                     <SelectItem key={department.value} value={department.value}>
                                         {department.label}
@@ -133,11 +124,10 @@ const SubjectsList = () => {
                                 ))}
                             </SelectContent>
                         </Select>
-
                         <CreateButton />
-                    </div>
-                </div>
-            </div>
+                    </>
+                }
+            />
 
             <DataTable table={subjectTable} />
         </ListView>

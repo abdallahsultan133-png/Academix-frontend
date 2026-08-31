@@ -12,13 +12,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu.tsx";
 import { useSidebar } from "@/components/ui/sidebar.tsx";
+import { AccountMenu } from "@/components/layout/account-menu.tsx";
 import { cn } from "@/lib/utils.ts";
 import { PAGE_META } from "@/constants";
+import { ROLE_LABEL_SHORT } from "@/lib/roles";
 import { UserRole, type User } from "@/types";
 import {
   useActiveAuthProvider,
   useGetIdentity,
-  useLogout,
   useMenu,
   useRefineOptions,
   type TreeMenuItem,
@@ -26,8 +27,6 @@ import {
 import { useKBar } from "kbar";
 import { Link } from "react-router";
 import {
-  LogOutIcon,
-  UserIcon,
   Menu,
   X,
   Search,
@@ -42,14 +41,6 @@ import {
   Users,
   type LucideIcon,
 } from "lucide-react";
-
-const ROLE_LABELS: Record<UserRole, string> = {
-  [UserRole.ADMIN]: "Admin",
-  [UserRole.SUPER_ADMIN]: "Admin",
-  [UserRole.TEACHER]: "Teacher",
-  [UserRole.STUDENT]: "Student",
-  [UserRole.PARENT]: "Parent",
-};
 
 type QuickAction = { label: string; href: string; icon: LucideIcon };
 
@@ -248,7 +239,6 @@ function QuickActionMenu() {
 }
 
 const UserDropdown = () => {
-  const { mutate: logout, isPending: isLoggingOut } = useLogout();
   const { data: identity } = useGetIdentity<User>();
 
   const authProvider = useActiveAuthProvider();
@@ -261,35 +251,18 @@ const UserDropdown = () => {
     <div className="flex items-center gap-2">
       {identity?.role && (
         <Badge variant="secondary" className="hidden sm:inline-flex">
-          {ROLE_LABELS[identity.role]}
+          {ROLE_LABEL_SHORT[identity.role]}
         </Badge>
       )}
-      <DropdownMenu>
-        <DropdownMenuTrigger aria-label="Open account menu">
+      <AccountMenu align="end">
+        <button
+          type="button"
+          aria-label="Open account menu"
+          className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        >
           <UserAvatar />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem asChild>
-            <Link to="/profile" className="flex items-center gap-2 cursor-pointer">
-              <UserIcon className="h-4 w-4" />
-              Profile & Settings
-            </Link>
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            onClick={() => {
-              logout();
-            }}
-          >
-            <LogOutIcon
-              className={cn("text-destructive", "hover:text-destructive")}
-            />
-            <span className={cn("text-destructive", "hover:text-destructive")}>
-              {isLoggingOut ? "Logging out..." : "Logout"}
-            </span>
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+        </button>
+      </AccountMenu>
     </div>
   );
 };

@@ -36,6 +36,11 @@ declare global {
             delete_token?: string;
             resource_type: string;
             original_filename: string;
+            // Present when the widget's cropper ran. `custom[0]` is the square
+            // the user drew, as [x, y, width, height] in source pixels.
+            coordinates?: {
+                custom?: [number, number, number, number][];
+            } | null;
         };
     }
 

@@ -10,18 +10,18 @@ import {
     Shield,
     Sparkles,
 } from "lucide-react";
-import { motion } from "framer-motion";
-import { useGetIdentity } from "@refinedev/core";
 import { AttendanceOverviewChart } from "@/components/dashboard/attendance-overview-chart";
 import { PerformanceChart } from "@/components/dashboard/performance-chart";
 import { ClassActivityChart } from "@/components/dashboard/class-activity-chart";
 import { UpcomingEvents } from "@/components/dashboard/upcoming-events";
 import { RecentActivity } from "@/components/dashboard/recent-activity";
+import { SystemActivity } from "@/components/dashboard/system-activity";
+import { ClassListPanel } from "@/components/dashboard/class-list-panel";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { QuickActions, type QuickAction } from "@/components/dashboard/quick-actions";
+import { DashboardGreeting } from "@/components/dashboard/dashboard-greeting";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useApiQuery } from "@/hooks/use-api-query.ts";
-import type { User } from "@/types";
 
 type AdminStats = {
     students: number;
@@ -52,7 +52,6 @@ const QUICK_ACTIONS: QuickAction[] = [
 ];
 
 const AdminDashboard = () => {
-    const { data: identity } = useGetIdentity<User>();
     const { data: stats, isLoading } = useApiQuery<AdminStats>("/dashboard/stats");
 
     const hasAttendanceRate = stats?.attendanceRate !== null && stats?.attendanceRate !== undefined;
@@ -75,18 +74,7 @@ const AdminDashboard = () => {
 
     return (
         <div className="space-y-6">
-            <motion.div
-                initial={{ opacity: 0, y: -8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.35, ease: "easeOut" }}
-            >
-                <h1 className="font-display text-3xl font-bold tracking-tight">
-                    Welcome back{identity?.name ? `, ${identity.name.split(" ")[0]}` : ""}
-                </h1>
-                <p className="text-muted-foreground">
-                    Here's what's happening across your school today.
-                </p>
-            </motion.div>
+            <DashboardGreeting subtitle="Enrolment, attendance, performance, and activity across your school." />
 
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
                 {isLoading ? (
@@ -119,21 +107,24 @@ const AdminDashboard = () => {
                 <div className="lg:col-span-2">
                     <ClassActivityChart />
                 </div>
-                <RecentActivity />
+                <SystemActivity />
             </div>
 
-            <div className="grid gap-4 lg:grid-cols-2">
+            <div className="grid gap-4 lg:grid-cols-3">
+                <RecentActivity />
+                <ClassListPanel variant="recent" showTeacher />
                 <UpcomingEvents />
-                <QuickActions
-                    actions={QUICK_ACTIONS}
-                    description="Create classes, manage users, and oversee your school."
-                    highlight={
-                        !isLoading && stats && stats.pendingGrading > 0
-                            ? { message: `${stats.pendingGrading} submission${stats.pendingGrading === 1 ? "" : "s"} waiting to be graded`, href: "/assignments" }
-                            : undefined
-                    }
-                />
             </div>
+
+            <QuickActions
+                actions={QUICK_ACTIONS}
+                description="Create classes, manage users, and oversee your school."
+                highlight={
+                    !isLoading && stats && stats.pendingGrading > 0
+                        ? { message: `${stats.pendingGrading} submission${stats.pendingGrading === 1 ? "" : "s"} waiting to be graded`, href: "/assignments" }
+                        : undefined
+                }
+            />
         </div>
     );
 };

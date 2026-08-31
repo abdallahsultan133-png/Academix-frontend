@@ -109,7 +109,6 @@ const QrAttendancePage = () => {
             autoScannedRef.current = true;
             markViaToken(routeToken);
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [routeToken]);
 
     const scanUrl = session
@@ -234,7 +233,7 @@ const QrAttendancePage = () => {
                         {scanResult ? (
                             <div className="flex flex-col items-center gap-3 py-4 text-center">
                                 <CheckCircle2 className="h-12 w-12 text-emerald-500" />
-                                <p className="font-semibold text-emerald-700">{scanResult}</p>
+                                <p className="font-semibold text-emerald-700 dark:text-emerald-400">{scanResult}</p>
                                 <Button variant="outline" onClick={() => { setScanResult(null); setScanError(null); }}>Mark another</Button>
                             </div>
                         ) : routeToken && scanning ? (
@@ -245,7 +244,7 @@ const QrAttendancePage = () => {
                         ) : routeToken && scanError ? (
                             <div className="flex flex-col items-center gap-3 py-4 text-center">
                                 <XCircle className="h-12 w-12 text-red-500" />
-                                <p className="font-semibold text-red-700">{scanError}</p>
+                                <p className="font-semibold text-red-700 dark:text-red-400">{scanError}</p>
                                 <Button variant="outline" onClick={() => markViaToken(routeToken)}>Try again</Button>
                             </div>
                         ) : (

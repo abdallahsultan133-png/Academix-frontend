@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import { useList } from "@refinedev/core";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
-import { Breadcrumb } from "@/components/layout/breadcrumb.tsx";
+import { PageHeader } from "@/components/layout/page-header.tsx";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { Input } from "@/components/ui/input.tsx";
@@ -24,7 +24,9 @@ const AnnouncementsCreate = () => {
   const { query: classesQuery } = useList<ClassDetails>({ resource: "classes", pagination: { pageSize: 100 } });
   const classes = classesQuery?.data?.data ?? [];
 
-  const [classId, setClassId] = useState(ALL_CLASSES_VALUE);
+  // Prefill the audience when arriving from a class workspace (…/create?classId=5).
+  const [searchParams] = useSearchParams();
+  const [classId, setClassId] = useState(searchParams.get("classId") ?? ALL_CLASSES_VALUE);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [pinned, setPinned] = useState(false);
@@ -63,12 +65,11 @@ const AnnouncementsCreate = () => {
 
   return (
     <div className="announcements-create space-y-6">
-      <Breadcrumb />
-
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">New Announcement</h1>
-        <p className="text-sm text-muted-foreground">Post to a specific class, or school-wide.</p>
-      </div>
+      <PageHeader
+        breadcrumb
+        title="New Announcement"
+        description="Post to a specific class, or school-wide."
+      />
 
       <Card className="max-w-2xl">
         <CardHeader>
