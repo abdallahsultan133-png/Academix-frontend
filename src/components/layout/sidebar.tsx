@@ -277,6 +277,7 @@ function NavItemRow({
   const collapsed = !open && !isMobile;
   const Icon = item.icon;
   const label = (role && item.labelByRole?.[role]) || item.label;
+  const [tipOpen, setTipOpen] = React.useState(false);
 
   const body = (
     <Link
@@ -333,25 +334,29 @@ function NavItemRow({
     </Link>
   );
 
-  if (collapsed) {
-    return (
-      <li>
-        <Tooltip delayDuration={250}>
-          <TooltipTrigger asChild>{body}</TooltipTrigger>
-          <TooltipContent side="right" className="flex items-center gap-2">
-            {label}
-            {badge > 0 && (
-              <span className="rounded bg-primary-foreground/15 px-1 text-[10px] font-semibold tabular-nums">
-                {badge > 99 ? "99+" : badge}
-              </span>
-            )}
-          </TooltipContent>
-        </Tooltip>
-      </li>
-    );
-  }
-
-  return <li>{body}</li>;
+  // Keep the tree shape identical whether expanded or collapsed — swapping
+  // between `<li>{body}</li>` and a Tooltip-wrapped `<li>` on every toggle
+  // remounted ~15 links at once and made the collapse animation stutter.
+  // The tooltip is simply never allowed to open while the sidebar is expanded.
+  return (
+    <li>
+      <Tooltip
+        delayDuration={250}
+        open={collapsed && tipOpen}
+        onOpenChange={setTipOpen}
+      >
+        <TooltipTrigger asChild>{body}</TooltipTrigger>
+        <TooltipContent side="right" className="flex items-center gap-2">
+          {label}
+          {badge > 0 && (
+            <span className="rounded bg-primary-foreground/15 px-1 text-[10px] font-semibold tabular-nums">
+              {badge > 99 ? "99+" : badge}
+            </span>
+          )}
+        </TooltipContent>
+      </Tooltip>
+    </li>
+  );
 }
 
 // ── Brand ────────────────────────────────────────────────────────────────────
