@@ -47,7 +47,7 @@ export const SignUpForm = () => {
             Your classroom,<br />organised at last.
           </h1>
           <p className="text-primary-foreground/70 text-lg leading-relaxed">
-            Join now meet teachers and students using Academix to run better, smarter classrooms.
+            Join now — meet the teachers and students using Academix to run better, smarter classrooms.
           </p>
           <ul className="space-y-3">
             {[
