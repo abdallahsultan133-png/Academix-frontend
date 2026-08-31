@@ -277,7 +277,20 @@ function NavItemRow({
   const collapsed = !open && !isMobile;
   const Icon = item.icon;
   const label = (role && item.labelByRole?.[role]) || item.label;
+
+  // The collapsed-only label tooltip is driven by hover/focus. Collapsing or
+  // expanding the sidebar must NOT surface it on its own: if the cursor happens
+  // to be resting over a row when you toggle, `tipOpen` is still true from that
+  // earlier hover and flipping `collapsed` would pop the label for an item you
+  // never touched. Reset the hover state on every toggle (adjust-state-during-
+  // render, so there's no one-frame flash) — the tooltip can only reappear from
+  // a fresh pointer/keyboard interaction with the row.
   const [tipOpen, setTipOpen] = React.useState(false);
+  const [prevCollapsed, setPrevCollapsed] = React.useState(collapsed);
+  if (prevCollapsed !== collapsed) {
+    setPrevCollapsed(collapsed);
+    if (tipOpen) setTipOpen(false);
+  }
 
   const body = (
     <Link
