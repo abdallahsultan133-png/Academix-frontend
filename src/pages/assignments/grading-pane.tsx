@@ -34,8 +34,10 @@ type Submission = {
 const getInitials = (name = "") =>
   name.trim().split(" ").filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join("");
 
+// Surface any non-zero suspicion — the detector is deliberately sensitive, so
+// low scores still mean "give it a read", not "cleared".
 const aiTone = (score: number): StatusTone =>
-  score >= 70 ? "critical" : score >= 30 ? "warning" : "success";
+  score >= 70 ? "critical" : score >= 30 ? "warning" : score > 0 ? "neutral" : "success";
 
 const FILTERS = [
   { key: "ungraded", label: "Needs grading" },
@@ -89,6 +91,10 @@ export function GradingPane({ assignmentId, maxScore }: GradingPaneProps) {
   const [feedback, setFeedback] = useState("");
   const [saving, setSaving] = useState(false);
 
+  // A score above the assignment's maximum is almost always a typo (85 on an
+  // 80-point task). Flag it inline and block the save until it's fixed.
+  const overMax = score.trim() !== "" && Number(score) > maxScore;
+
   // Load the draft from whichever submission is selected.
   useEffect(() => {
     setScore(selected?.score != null ? String(selected.score) : "");
@@ -109,8 +115,14 @@ export function GradingPane({ assignmentId, maxScore }: GradingPaneProps) {
     if (!selected) return;
     const trimmed = score.trim();
     const numeric = Number(trimmed);
-    if (!trimmed || Number.isNaN(numeric) || numeric < 0 || numeric > maxScore) {
+    if (!trimmed || Number.isNaN(numeric) || numeric < 0) {
       toast.error(`Enter a score between 0 and ${maxScore}.`);
+      return;
+    }
+    if (numeric > maxScore) {
+      toast.error(
+        `Score can't be above the maximum of ${maxScore}. Enter ${maxScore} or lower — e.g. ${maxScore}/${maxScore} or ${maxScore - 1}/${maxScore}.`,
+      );
       return;
     }
 
@@ -219,13 +231,17 @@ export function GradingPane({ assignmentId, maxScore }: GradingPaneProps) {
                       {s.status === "graded" ? `Scored ${s.score}/${maxScore}` : "Awaiting grade"}
                     </span>
                   </span>
-                  {s.aiScore != null && s.aiScore >= 30 && (
+                  {s.aiScore != null && s.aiScore > 0 && (
                     <Sparkles
                       className={cn(
                         "h-3.5 w-3.5 shrink-0",
-                        s.aiScore >= 70 ? "text-red-500" : "text-amber-500",
+                        s.aiScore >= 70
+                          ? "text-red-500"
+                          : s.aiScore >= 30
+                            ? "text-amber-500"
+                            : "text-muted-foreground",
                       )}
-                      aria-label={`${s.aiScore}% likely AI-written`}
+                      aria-label={`${s.aiScore}% likely AI-assisted — review`}
                     />
                   )}
                   <span
@@ -269,12 +285,38 @@ export function GradingPane({ assignmentId, maxScore }: GradingPaneProps) {
                 <div className="flex items-center gap-1.5 font-medium">
                   <Sparkles className="h-3.5 w-3.5" />
                   <StatusBadge tone={aiTone(selected.aiScore)}>
-                    {selected.aiScore}% likely AI-written
+                    {selected.aiScore === 0
+                      ? "No AI signal detected"
+                      : `${selected.aiScore}% likely AI-assisted`}
                   </StatusBadge>
                 </div>
                 {selected.aiSummary && (
                   <p className="mt-1.5 text-muted-foreground">{selected.aiSummary}</p>
                 )}
+                <p className="mt-1.5 text-[11px] text-muted-foreground">
+                  Advisory only. Automated AI screening is unreliable in both
+                  directions — read the work and talk to the student before
+                  acting on this.
+                </p>
+              </div>
+            )}
+
+            {selected.aiScore == null && selected.content && selected.content.trim().length > 0 && (
+              <p className="text-xs text-muted-foreground">
+                <Sparkles className="mr-1 inline h-3 w-3" />
+                AI screening pending — reload in a moment.
+              </p>
+            )}
+
+            {!selected.content?.trim() && selected.fileUrl && (
+              <div className="rounded-lg border bg-muted/40 p-3 text-xs text-muted-foreground">
+                <span className="inline-flex items-center gap-1.5 font-medium text-foreground">
+                  <Sparkles className="h-3.5 w-3.5" /> File submission — not AI-screened
+                </span>
+                <p className="mt-1">
+                  Automated screening only covers typed text. Open the file and
+                  review it yourself.
+                </p>
               </div>
             )}
 
@@ -323,6 +365,13 @@ export function GradingPane({ assignmentId, maxScore }: GradingPaneProps) {
                 </label>
               </div>
 
+              {overMax && (
+                <p className="text-xs font-medium text-destructive">
+                  That's above the maximum of {maxScore}. Enter {maxScore} or lower
+                  (e.g. {maxScore}/{maxScore} or {maxScore - 1}/{maxScore}).
+                </p>
+              )}
+
               <label className="block text-sm font-medium">
                 <span className="mb-1 block">Feedback <span className="font-normal text-muted-foreground">(optional)</span></span>
                 <Textarea
@@ -334,11 +383,11 @@ export function GradingPane({ assignmentId, maxScore }: GradingPaneProps) {
               </label>
 
               <div className="flex flex-wrap gap-2">
-                <Button onClick={() => save(false)} disabled={saving} variant="outline">
+                <Button onClick={() => save(false)} disabled={saving || overMax} variant="outline">
                   {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Save
                 </Button>
-                <Button onClick={() => save(true)} disabled={saving || ungradedCount === 0}>
+                <Button onClick={() => save(true)} disabled={saving || overMax || ungradedCount === 0}>
                   {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ArrowRight className="mr-2 h-4 w-4" />}
                   Save &amp; next
                 </Button>

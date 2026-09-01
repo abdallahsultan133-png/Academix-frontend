@@ -393,7 +393,7 @@ function BrandHeader() {
             <p className="truncate text-[13px] font-semibold tracking-tight text-sidebar-foreground">
               {APP_NAME}
             </p>
-            <p className="truncate text-[11px] text-muted-foreground">{APP_TAGLINE}</p>
+            <p className="truncate text-xs font-medium text-sidebar-foreground/70">{APP_TAGLINE}</p>
           </div>
 
           {isMobile ? (

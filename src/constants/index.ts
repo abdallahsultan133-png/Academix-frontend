@@ -2,7 +2,7 @@
 // palette) already says "Academix"; App.tsx and the sidebar were the two
 // hold-outs still saying "ClassroomMS" / "Classroom Management".
 export const APP_NAME = "Academix";
-export const APP_TAGLINE = "School management";
+export const APP_TAGLINE = "Classroom management";
 
 // NOTE: this fixed list predates the `departments` DB table and is still used
 // as the department filter on the subjects list. It should eventually be

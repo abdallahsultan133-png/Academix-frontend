@@ -33,6 +33,11 @@ export function AvatarUploader() {
 
   const widgetRef = useRef<CloudinaryWidget | null>(null);
   const [busy, setBusy] = useState(false);
+  // The Cloudinary upload widget is built asynchronously — its script (loaded in
+  // index.html) can be blocked by privacy/ad-blocker extensions or a slow CDN.
+  // Track a hard failure so the button can say so instead of silently doing
+  // nothing while `widgetRef.current` is still null.
+  const [loadFailed, setLoadFailed] = useState(false);
 
   const save = async (url: string | null, publicId: string | null) => {
     setBusy(true);
@@ -69,7 +74,8 @@ export function AvatarUploader() {
     if (typeof window === "undefined") return;
 
     const init = () => {
-      if (!window.cloudinary || widgetRef.current) return !!widgetRef.current;
+      if (widgetRef.current) return true;
+      if (!window.cloudinary) return false;
       widgetRef.current = window.cloudinary.createUploadWidget(
         {
           cloudName: CLOUDINARY_CLOUD_NAME,
@@ -101,10 +107,31 @@ export function AvatarUploader() {
     const id = window.setInterval(() => {
       if (init()) window.clearInterval(id);
     }, 500);
-    return () => window.clearInterval(id);
+    // If the script never shows up (blocked / offline), stop polling after 15s
+    // and mark it failed so the button reports it instead of no-op'ing forever.
+    const timeout = window.setTimeout(() => {
+      window.clearInterval(id);
+      if (!widgetRef.current) setLoadFailed(true);
+    }, 15_000);
+    return () => {
+      window.clearInterval(id);
+      window.clearTimeout(timeout);
+    };
   }, []);
 
   const hasPhoto = !!identity?.image;
+
+  const openWidget = () => {
+    if (widgetRef.current) {
+      widgetRef.current.open();
+      return;
+    }
+    toast.error(
+      loadFailed
+        ? "The photo uploader failed to load — disable content blockers for this site, then reload."
+        : "The photo uploader is still loading — try again in a moment.",
+    );
+  };
 
   return (
     <div className="flex items-center gap-5">
@@ -131,7 +158,7 @@ export function AvatarUploader() {
             size="sm"
             variant="outline"
             disabled={busy}
-            onClick={() => widgetRef.current?.open()}
+            onClick={openWidget}
           >
             <Camera className="mr-1.5 h-4 w-4" />
             {hasPhoto ? "Change photo" : "Upload photo"}
